@@ -1,0 +1,30 @@
+version: '3.8'
+services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    restart: unless-stopped
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  api:
+    build: ./agent_api
+    restart: on-failure
+    environment:
+      - OPENAI_API_KEY
+      - QDRANT_URL=http://qdrant:6333
+    ports:
+      - "8000:8000"
+    depends_on:
+      - qdrant
+      - redis
+
+volumes:
+  qdrant_data:

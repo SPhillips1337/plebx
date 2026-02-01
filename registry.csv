@@ -1,0 +1,2 @@
+name,owner,permissions,last_audit
+SupportTriage,apps-team@example.com,"read:tickets_db;write:suggestions_table",2026-02-01

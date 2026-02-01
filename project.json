@@ -1,0 +1,181 @@
+{
+  "schemaVersion": "1.0.0",
+  "name": "PlebX Social Overlay",
+  "slug": "plebx-social-overlay",
+  "summary": "Middleware overlay that turns Plebbit (5chan) content into a Twitter/Meet.me-style social experience with ranked feeds, profiles, chat, and image support.",
+  "version": "0.1.0",
+  "license": "MIT",
+  "repository": "https://github.com/your-org/plebx-social-overlay",
+  "goals": [
+    "Expose a Twitter-like ranked feed from Plebbit content",
+    "Provide profiles, follow/friend relationships, chat/messaging and image uploads",
+    "Keep Plebbit federation intact by default (read-only ingestion)",
+    "Create a scaffold that can be hardened and scaled to production"
+  ],
+  "primary_features": [
+    "User profiles and follows/friends",
+    "Ranked timeline (twitter-style algorithm)",
+    "Threaded comments with click-through thread view",
+    "Image upload and preview with NSFW scanning",
+    "Realtime notifications and chat"
+  ],
+  "secondary_features": [
+    "Optional write-back to Plebbit after moderation",
+    "Personalization with embeddings and vector DB",
+    "Mobile-friendly UI and push notifications"
+  ],
+  "tech_stack": {
+    "backend": "Python (FastAPI) or Node (Express/Fastify)",
+    "ranking_service": "Adapted from twitter/the-algorithm (as microservice/library)",
+    "db": "Postgres (primary metadata)",
+    "cache_queue": "Redis",
+    "vector_store": "Qdrant or pgvector (optional)",
+    "object_store": "S3-compatible (minio or AWS S3)",
+    "frontend": "React (Vite) or Vue",
+    "realtime": "WebSockets (uvicorn, socket.io)",
+    "ci_cd": "GitHub Actions",
+    "orchestration": "Docker Compose (dev) -> Kubernetes (prod)"
+  },
+  "security_considerations": [
+    "Read-only ingestion by default to avoid upstream side effects",
+    "NSFW and malware scanning for images",
+    "PII detection and masking before using external APIs",
+    "Rate limits and abuse detection",
+    "Audit logs for all agent actions"
+  ],
+  "development_state": {
+    "scaffold": "Initial scaffold added to /home/stephen/Documents/www/PlebX (agent scaffold + docker compose + FastAPI example)",
+    "reviewed_examples": [
+      "bitsocialhq/5chan",
+      "twitter/the-algorithm",
+      "SPhillips1337/im"
+    ],
+    "notes": "Scaffold contains agent_spec.yaml, prompts/, playbooks/, docker-compose.yml, agent_api/ with placeholder FastAPI app."
+  },
+  "development_plan": {
+    "currentPhase": 1,
+    "phases": [
+      {
+        "number": 0,
+        "name": "Discovery",
+        "description": "Audit source repos and decide ingestion strategy",
+        "tasks": [
+          { "name": "Audit 5chan codebase", "status": "pending" },
+          { "name": "Decide read-only vs write-back", "status": "pending" }
+        ]
+      },
+      {
+        "number": 1,
+        "name": "MVP",
+        "description": "Adapter + simple ranking + UI",
+        "tasks": [
+          { "name": "Implement Plebbit adapter (read-only)", "status": "pending" },
+          { "name": "Implement simplified ranking service", "status": "pending" },
+          { "name": "Basic React feed and thread UI", "status": "pending" }
+        ]
+      },
+      {
+        "number": 2,
+        "name": "Realtime & Messaging",
+        "description": "Add WebSockets, chat, notifications",
+        "tasks": [
+          { "name": "WebSocket notifications", "status": "pending" },
+          { "name": "Chat persistence and delivery", "status": "pending" }
+        ]
+      }
+    ]
+  },
+  "todo": [
+    { "id": "T001", "title": "Confirm read-only ingestion strategy", "status": "pending", "priority": "high" },
+    { "id": "T002", "title": "Seed local dev DB with sample Plebbit data", "status": "pending", "priority": "high" },
+    { "id": "T003", "title": "Implement ranking microservice prototype", "status": "pending", "priority": "medium" }
+  ],
+  "files_of_interest": [
+    "/home/stephen/Documents/www/PlebX/AGENTS.md",
+    "/home/stephen/Documents/www/PlebX/agent_spec.yaml",
+    "https://github.com/bitsocialhq/5chan",
+    "https://github.com/twitter/the-algorithm",
+    "https://github.com/SPhillips1337/im"
+  ],
+  "open_questions": [
+    "Read-only ingestion or enable write-back now?",
+    "Qdrant or pgvector/Postgres for vector store?",
+    "Self-managed Kubernetes or managed cloud (EKS/GKE/AKS)?"
+  ],
+  "contact": {
+    "owner": "stephen",
+    "email": "apps-team@example.com"
+  },
+  "how_to_run_locally": {
+    "steps": [
+      "Copy .env.example -> .env and fill secrets (OPENAI_API_KEY, DATABASE_URL, REDIS_URL, S3 credentials)",
+      "docker compose build && docker compose up -d",
+      "Visit http://localhost:8000/health to verify the API"
+    ]
+  },
+  "lastUpdated": "2026-02-01T00:00:00Z",
+  "api_endpoints": [
+    { "endpoint": "/health", "method": "GET", "description": "Health check" },
+    { "endpoint": "/feed", "method": "GET", "description": "User feed with ranking" },
+    { "endpoint": "/post", "method": "POST", "description": "Create a post in PlebX (optional write-back)" },
+    { "endpoint": "/post/:id", "method": "GET", "description": "Retrieve post with thread" }
+  ],
+  "required_env": [
+    "OPENAI_API_KEY",
+    "DATABASE_URL",
+    "REDIS_URL",
+    "QDRANT_URL",
+    "S3_BUCKET",
+    "FEATURE_AGENT_MODE"
+  ],
+  "current_capabilities": [
+    "Scaffold (agent_spec, docker-compose, FastAPI placeholder)",
+    "Basic plan and manifest (this project.json)"
+  ],
+  "next_steps": [
+    "Confirm read-only ingestion default",
+    "Create repo skeleton and CI",
+    "Implement adapter & prototype ranking service"
+  ],
+  "architecture": {
+    "overview": "Middleware overlay that ingests Plebbit content and serves a ranked, social UI with realtime features.",
+    "components": {
+      "adapter": {
+        "description": "Ingests Plebbit content via DB or API and normalizes into PlebX model",
+        "implementation": "Python microservice (FastAPI)",
+        "files": ["agent_api/adapter.py", "agent_spec.yaml"],
+        "status": "pending"
+      },
+      "ranking_service": {
+        "description": "Implements scoring adapted from twitter/the-algorithm",
+        "implementation": "Microservice or library callable from backend",
+        "files": ["ranking/"],
+        "status": "pending"
+      },
+      "frontend": {
+        "description": "React app showing feed, profiles, thread view and chat",
+        "implementation": "React (Vite) or Vue",
+        "files": ["web/"],
+        "status": "pending"
+      }
+    }
+  },
+  "infrastructure": {
+    "type": "dev -> k8s/prod",
+    "notes": "Dev: Docker Compose. Prod: Kubernetes or managed services",
+    "files": ["docker-compose.yml", "k8s/"]
+  },
+  "status": "planning",
+  "concept": "Overlay Plebbit with a Twitter-style ranked social product while preserving upstream compatibility",
+  "current_goals": [
+    "Deliver MVP adapter + feed + UI",
+    "Validate ranking & moderation approach"
+  ],
+  "key_files": {
+    "plan": "PLAN.md",
+    "manifest": "project.json",
+    "scaffold": "agent_spec.yaml"
+  },
+  "progress_percent": 10,
+  "progress_state": "planning"
+}
