@@ -3,8 +3,10 @@ from pydantic import BaseModel
 import os
 import re
 import json
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
+from adapter import Adapter
+from ranking import RankingService
 
 # Optional Redis support
 try:
@@ -31,8 +33,8 @@ else:
 
 # Minimal validators
 EMAIL_REGEX = re.compile(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+")
-# Refined SSN regex: strictly matches ###-##-#### or ######### but only if specifically flagged
-SSN_REGEX = re.compile(r"\b\d{3}-\d{2}-\d{4}\b")
+# Refined SSN regex: strictly matches ###-##-#### or #########
+SSN_REGEX = re.compile(r"\b\d{3}-\d{2}-\d{4}\b|\b\d{9}\b")
 PII_PATTERNS = [EMAIL_REGEX, SSN_REGEX]
 PROFANITY = {"badword1", "badword2"}  # replace with curated list
 
@@ -80,8 +82,33 @@ async def health():
 
 
 @app.get("/feed")
-async def feed():
-    return {"ok": True}
+async def feed(mode: str = "ipfs", limit: int = 20):
+    adapter = Adapter(mode=mode)
+    ranking = RankingService()
+
+    raw_posts = adapter.fetch_recent_posts(limit=limit)
+    normalized_posts = [adapter.normalize_post(p) for p in raw_posts]
+    scored_posts = ranking.score_posts(normalized_posts)
+
+    return {
+        "ok": True,
+        "posts": scored_posts,
+        "count": len(scored_posts)
+    }
+
+
+@app.get("/post/{post_id}")
+async def get_post(post_id: str, mode: str = "ipfs"):
+    adapter = Adapter(mode=mode)
+    # In a real impl, we'd fetch a specific post and its thread
+    # For now, we simulate by fetching samples and finding the ID
+    posts = adapter.fetch_recent_posts(limit=100)
+    for p in posts:
+        normalized = adapter.normalize_post(p)
+        if normalized["id"] == post_id:
+            return {"ok": True, "post": normalized, "thread": []}
+
+    raise HTTPException(status_code=404, detail="Post not found")
 
 
 @app.post("/triage")
@@ -94,6 +121,7 @@ async def triage(req: TriageRequest):
     }
 
 
+@app.post("/post")
 @app.post("/publish")
 async def publish(req: PublishRequest, request: Request):
     # Basic auth: strictly require X-User header and it must match req.user
