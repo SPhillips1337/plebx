@@ -3,6 +3,8 @@ import os
 import time
 import json
 import subprocess
+import signal
+import sys
 from datetime import datetime
 
 REPO_ROOT = os.environ.get('REPO_ROOT', '/repo')
@@ -45,7 +47,9 @@ def try_opencode_generate(prompt: str):
     last_err = ''
     for cmd in cmds:
         try:
-            p = subprocess.run(['opencode','run','--prompt' , prompt, '--model','opencode/big-pickle'], capture_output=True, text=True, timeout=180, cwd=REPO_ROOT)
+            # Fix: Use the 'cmd' from the loop instead of a hardcoded list
+            full_cmd = cmd + ['--prompt', prompt]
+            p = subprocess.run(full_cmd, capture_output=True, text=True, timeout=180, cwd=REPO_ROOT)
             if p.returncode == 0 and p.stdout.strip():
                 return {'ok': True, 'cmd': ' '.join(cmd), 'output': p.stdout}
             last_err = p.stderr or p.stdout
@@ -55,8 +59,9 @@ def try_opencode_generate(prompt: str):
 
 
 def read_new_envelopes():
+    """Reads new envelopes from the queue and returns them along with the start offset."""
     if not os.path.exists(QUEUE_PATH):
-        return []
+        return [], 0
     offset = 0
     if os.path.exists(processed_offset_path):
         try:
@@ -77,12 +82,17 @@ def read_new_envelopes():
                     envelopes.append(json.loads(line))
                 except Exception:
                     envelopes.append({'raw': line})
-        new_offset = offset + len(envelopes)
+    except Exception as e:
+        log(f"Failed reading queue: {e}")
+    return envelopes, offset
+
+
+def update_processed_offset(new_offset):
+    try:
         with open(processed_offset_path, 'w') as f:
             f.write(str(new_offset))
     except Exception as e:
-        log(f"Failed reading queue: {e}")
-    return envelopes
+        log(f"Failed updating offset: {e}")
 
 
 def make_suggestion(envelope, idx, opencode_available):
@@ -101,7 +111,7 @@ def make_suggestion(envelope, idx, opencode_available):
         if os.path.exists(plan_path):
             with open(plan_path, 'r', encoding='utf-8') as pf:
                 plan_snippet = pf.read(2000)
-        prompt = f"Repo PLAN.md excerpt:\n{plan_snippet}\n\nEnvelope:\n{json.dumps(envelope, ensure_ascii=False, indent=2)}\n\nTask: Propose one concrete code change or new file to progress the PlebX project (MVP). Output JSON with keys: title, description, files (array of {path, patch}), rationale." 
+        prompt = f"Repo PLAN.md excerpt:\n{plan_snippet}\n\nEnvelope:\n{json.dumps(envelope, ensure_ascii=False, indent=2)}\n\nTask: Propose one concrete code change or new file to progress the PlebX project (MVP). Output JSON with keys: title, description, files (array of {path, patch}), rationale."
     except Exception:
         prompt = 'Generate a suggested code change for PlebX based on available plan and envelope.'
 
@@ -136,19 +146,48 @@ def make_suggestion(envelope, idx, opencode_available):
         log(f"Failed writing suggestion: {e}")
 
 
+running = True
+
+def handle_exit(signum, frame):
+    global running
+    log(f"Received signal {signum}, shutting down...")
+    running = False
+
 if __name__ == '__main__':
+    signal.signal(signal.SIGINT, handle_exit)
+    signal.signal(signal.SIGTERM, handle_exit)
+
     log('agent-runner starting')
     opencode_avail = detect_opencode()
     log(f'opencode available: {opencode_avail}')
     idx = 0
-    while True:
+
+    # Initialize idx based on current offset to keep filenames somewhat unique/consistent
+    _, initial_offset = read_new_envelopes()
+    idx = initial_offset
+
+    while running:
         try:
-            envelopes = read_new_envelopes()
+            envelopes, current_offset = read_new_envelopes()
             if envelopes:
                 log(f'Found {len(envelopes)} new envelope(s)')
-            for env in envelopes:
-                make_suggestion(env, idx, opencode_avail)
-                idx += 1
+                processed_count = 0
+                for env in envelopes:
+                    if not running:
+                        break
+                    make_suggestion(env, idx, opencode_avail)
+                    idx += 1
+                    processed_count += 1
+
+                # Update offset only after processing
+                update_processed_offset(current_offset + processed_count)
         except Exception as e:
             log(f'Loop error: {e}')
-        time.sleep(POLL_INTERVAL)
+
+        # Sleep in small increments to remain responsive to signals
+        for _ in range(int(POLL_INTERVAL)):
+            if not running:
+                break
+            time.sleep(1)
+
+    log('agent-runner exited gracefully')

@@ -3,8 +3,10 @@ from pydantic import BaseModel
 import os
 import re
 import json
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
+from adapter import Adapter
+from ranking import RankingService
 
 # Optional Redis support
 try:
@@ -31,8 +33,13 @@ else:
 
 # Minimal validators
 EMAIL_REGEX = re.compile(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+")
-PII_PATTERNS = [EMAIL_REGEX, re.compile(r"\b\d{3}-\d{2}-\d{4}\b"), re.compile(r"\b\d{9}\b")]  # SSN-ish
+# Refined SSN regex: strictly matches ###-##-#### or #########
+SSN_REGEX = re.compile(r"\b\d{3}-\d{2}-\d{4}\b|\b\d{9}\b")
+PII_PATTERNS = [EMAIL_REGEX, SSN_REGEX]
 PROFANITY = {"badword1", "badword2"}  # replace with curated list
+
+class TriageRequest(BaseModel):
+    ticket_text: str
 
 class PublishRequest(BaseModel):
     user: str
@@ -75,13 +82,38 @@ async def health():
 
 
 @app.get("/feed")
-async def feed():
-    return {"ok": True}
+async def feed(mode: str = "ipfs", limit: int = 20):
+    adapter = Adapter(mode=mode)
+    ranking = RankingService()
+
+    raw_posts = adapter.fetch_recent_posts(limit=limit)
+    normalized_posts = [adapter.normalize_post(p) for p in raw_posts]
+    scored_posts = ranking.score_posts(normalized_posts)
+
+    return {
+        "ok": True,
+        "posts": scored_posts,
+        "count": len(scored_posts)
+    }
+
+
+@app.get("/post/{post_id}")
+async def get_post(post_id: str, mode: str = "ipfs"):
+    adapter = Adapter(mode=mode)
+    # In a real impl, we'd fetch a specific post and its thread
+    # For now, we simulate by fetching samples and finding the ID
+    posts = adapter.fetch_recent_posts(limit=100)
+    for p in posts:
+        normalized = adapter.normalize_post(p)
+        if normalized["id"] == post_id:
+            return {"ok": True, "post": normalized, "thread": []}
+
+    raise HTTPException(status_code=404, detail="Post not found")
 
 
 @app.post("/triage")
-async def triage(payload: dict):
-    ticket = payload.get('ticket_text')
+async def triage(req: TriageRequest):
+    ticket = req.ticket_text
     return {
         "priority": "P2",
         "owner": "support-team@example.com",
@@ -89,12 +121,15 @@ async def triage(payload: dict):
     }
 
 
+@app.post("/post")
 @app.post("/publish")
 async def publish(req: PublishRequest, request: Request):
-    # Basic auth: require X-User header or req.user
+    # Basic auth: strictly require X-User header and it must match req.user
     header_user = request.headers.get("X-User")
-    if header_user and header_user != req.user:
-        # require matching header for safety
+    if not header_user:
+        raise HTTPException(status_code=401, detail="X-User header is required")
+
+    if header_user != req.user:
         raise HTTPException(status_code=403, detail="X-User header must match request.user")
 
     # Normalize namespace and tags
