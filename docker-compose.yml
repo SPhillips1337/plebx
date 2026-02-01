@@ -21,7 +21,7 @@ services:
       - OPENAI_API_KEY
       - QDRANT_URL=http://qdrant:6333
     ports:
-      - "8000:8000"
+      - "8001:8000"
     depends_on:
       - qdrant
       - redis
