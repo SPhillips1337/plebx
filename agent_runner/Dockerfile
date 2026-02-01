@@ -10,7 +10,8 @@ COPY runner.py /app/runner.py
 RUN pip install --no-cache-dir requests watchdog || true
 
 # Install OpenCode CLI during image build so it's present in container PATH
+# NOTE: In production, verify the script integrity with a checksum or use a pinned version.
 RUN curl -fsSL https://opencode.ai/install | bash || true
 
-VOLUME [/repo]
-CMD [python, /app/runner.py]
+VOLUME ["/repo"]
+CMD ["python", "/app/runner.py"]
