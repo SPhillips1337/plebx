@@ -74,6 +74,11 @@ async def health():
     return {"status": "ok", "writeback_enabled": ENABLE_WRITEBACK}
 
 
+@app.get("/feed")
+async def feed():
+    return {"ok": True}
+
+
 @app.post("/triage")
 async def triage(payload: dict):
     ticket = payload.get('ticket_text')
