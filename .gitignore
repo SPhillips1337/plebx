@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtualenvs
+venv/
+.venv/
+ENV/
+
+# Environment variables and secrets
+.env
+.env.*
+.env.local
+.git-credentials
+
+# SSH keys
+*.pem
+*.key
+.ssh/
+
+# Editor / OS files
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Logs and runtime
+logs/
+*.log
+
+# Local data queues, caches, and artifacts
+data/
+suggestions/
+*.sqlite3
+.processed_offset
+
+# Backups and editor temp files
+*.bak
+*~
+
+# Docker overrides and local builds
+docker-compose.override.yml
+docker-compose.yml.bak
+
+# Node
+node_modules/
+
+# Opencode local runtime
+.opencode/
+/root/.opencode/
+
+# Agent runner build artifacts
+agent_runner/__pycache__/
+
+# Misc
+*.patch
