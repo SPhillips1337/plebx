@@ -11,14 +11,17 @@ export default function Admin(){
   const [suggestions,setSuggestions] = useState([])
   const [suggestLoading,setSuggestLoading] = useState(false)
   const suggestTimer = useRef(null)
+  const [adminToken, setAdminToken] = useState('')
 
   async function submit(e){
     e.preventDefault()
     setStatus('Saving...')
     try{
+      const hdrs = {'Content-Type':'application/json'}
+      if(adminToken) hdrs['X-Admin-Token'] = adminToken
       const res = await fetch(`${API_BASE}/admin/user/${encodeURIComponent(userId)}`, {
         method: 'POST',
-        headers: {'Content-Type':'application/json'},
+        headers: hdrs,
         body: JSON.stringify({display_name: displayName, avatar_url: avatarUrl})
       })
       const data = await res.json()
@@ -34,7 +37,9 @@ export default function Admin(){
     setLoadingUser(true)
     setStatus('Loading user...')
     try{
-      const res = await fetch(`${API_BASE}/user/${encodeURIComponent(userId)}`)
+      const hdrs = {}
+      if(adminToken) hdrs['X-Admin-Token'] = adminToken
+      const res = await fetch(`${API_BASE}/user/${encodeURIComponent(userId)}`, {headers: hdrs})
       if(res.status === 404){
         setStatus('User not found — you can create it')
         setDisplayName('')
@@ -63,7 +68,9 @@ export default function Admin(){
     suggestTimer.current = setTimeout(async ()=>{
       setSuggestLoading(true)
       try{
-        const res = await fetch(`${API_BASE}/users?query=${encodeURIComponent(v)}&limit=6`)
+        const hdrs = {}
+        if(adminToken) hdrs['X-Admin-Token'] = adminToken
+        const res = await fetch(`${API_BASE}/users?query=${encodeURIComponent(v)}&limit=6`, {headers: hdrs})
         const data = await res.json()
         if(res.ok) setSuggestions(data.users || [])
         else setSuggestions([])
@@ -84,7 +91,9 @@ export default function Admin(){
   async function loadUsers(page = 1){
     setListLoading(true)
     try{
-      const res = await fetch(`${API_BASE}/admin/users?page=${page}&per_page=${listPerPage}`)
+      const hdrs = {'Content-Type':'application/json'}
+      if(adminToken) hdrs['X-Admin-Token'] = adminToken
+      const res = await fetch(`${API_BASE}/admin/users?page=${page}&per_page=${listPerPage}`, {headers: hdrs})
       const data = await res.json()
       if(!res.ok){ setUsersList([]); setListTotal(0); return }
       setUsersList(data.users || [])
@@ -93,6 +102,21 @@ export default function Admin(){
       setShowList(true)
     }catch(e){ setUsersList([]); setListTotal(0) }
     finally{ setListLoading(false) }
+  }
+
+  // Load admin token from localStorage on mount
+  useEffect(()=>{
+    try{
+      const t = localStorage.getItem('plebx_admin_token') || ''
+      setAdminToken(t)
+    }catch(e){}
+  }, [])
+
+  function saveToken(){
+    try{
+      localStorage.setItem('plebx_admin_token', adminToken || '')
+      setStatus('Token saved')
+    }catch(e){ setStatus('Failed to save token') }
   }
 
 
