@@ -26,7 +26,7 @@ function Avatar({name, avatar}){
   return <div className="avatar" style={{background:bg}}>{label}</div>
 }
 
-function Post({p}){
+function Post({p, currentUser}){
   return (
     <div className="post" onClick={()=>{ window.history.pushState({},'', `/post/${encodeURIComponent(p.id)}`); window.dispatchEvent(new PopStateEvent('popstate')) }}>
       <div className="post-row">
@@ -47,7 +47,7 @@ function Post({p}){
   )
 }
 
-export default function Feed(){
+export default function Feed({currentUser}){
   const [posts,setPosts] = useState([])
   const [nextCursor,setNextCursor] = useState(null)
   const [loading,setLoading] = useState(false)
@@ -76,7 +76,7 @@ export default function Feed(){
   return (
     <div>
       <div id="feed">
-        {posts.map(p=> <Post key={p.id} p={p} className="plebx-post" />)}
+        {posts.map(p=> <Post key={p.id} p={p} className="plebx-post" currentUser={currentUser} />)}
         {posts.length===0 && !loading && <div>No posts</div>}
       </div>
       {nextCursor && <div className="plebx-loadmore"><button className="plebx-btn-primary" onClick={()=>load(nextCursor,true)} disabled={loading}>{loading? 'Loading...':'Load more'}</button></div>}

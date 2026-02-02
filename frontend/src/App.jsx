@@ -16,6 +16,15 @@ function parseRoute(){
 export default function App(){
   const [showAdmin,setShowAdmin] = useState(false)
   const [route, setRoute] = useState(parseRoute())
+  const [currentUser, setCurrentUser] = useState('')
+
+  useEffect(()=>{
+    try{ const u = localStorage.getItem('plebx_current_user') || ''; setCurrentUser(u) }catch(e){}
+  }, [])
+
+  function saveCurrentUser(){
+    try{ localStorage.setItem('plebx_current_user', currentUser||'') }catch(e){}
+  }
 
   useEffect(()=>{
     function onPop(){ setRoute(parseRoute()) }
@@ -27,11 +36,15 @@ export default function App(){
     <div className="plebx-app">
       <div className="plebx-header">
         <h1>PlebX — Feed (MVP)</h1>
-        <div><button className="plebx-btn-primary" onClick={()=>setShowAdmin(s=>!s)}>{showAdmin? 'Close Admin':'Open Admin'}</button></div>
+        <div style={{display:'flex',gap:8,alignItems:'center'}}>
+          <input placeholder="Act as user id" value={currentUser} onChange={e=>setCurrentUser(e.target.value)} style={{padding:6,borderRadius:8,background:'transparent',border:'1px solid rgba(255,255,255,0.06)',color:'var(--text)'}} />
+          <button onClick={saveCurrentUser} className="plebx-btn-primary">Set</button>
+          <button className="plebx-btn-primary" onClick={()=>setShowAdmin(s=>!s)}>{showAdmin? 'Close Admin':'Open Admin'}</button>
+        </div>
       </div>
 
-      {route.name === 'feed' && <Feed />}
-      {route.name === 'post' && <PostView postId={route.params.id} />}
+      {route.name === 'feed' && <Feed currentUser={currentUser} />}
+      {route.name === 'post' && <PostView postId={route.params.id} currentUser={currentUser} />}
 
       {showAdmin && <Admin />}
     </div>

@@ -23,7 +23,7 @@ function ReplyNode({node, depth=0}){
   )
 }
 
-export default function PostView({postId}){
+export default function PostView({postId, currentUser}){
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -51,7 +51,13 @@ export default function PostView({postId}){
             {p.author && p.author.avatar_url ? <img src={p.author.avatar_url} alt="avatar" className="plebx-avatar-img" /> : ((p.author && (p.author.display_name||p.author.username)||p.author_id||' ').slice(0,2).toUpperCase())}
           </div>
           <div className="post-content">
-            <div className="plebx-meta"><strong>{(p.author && (p.author.display_name||p.author.username)) || p.author_id}</strong> <span className="plebx-score">★ {Number(p.score||0).toFixed(2)}</span></div>
+            <div className="plebx-meta">
+              <strong>{(p.author && (p.author.display_name||p.author.username)) || p.author_id}</strong>
+              <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                <span className="plebx-score">★ {Number(p.score||0).toFixed(2)}</span>
+                <FollowButton authorId={p.author_id} currentUser={currentUser} />
+              </div>
+            </div>
             <div className="content-text">{p.content}</div>
           </div>
         </div>
@@ -165,4 +171,40 @@ function Composer({postId, onPosted, onOptimistic, onRemoveOptimistic, onReplace
       {result && result.ok && <div className="plebx-success">Success: {JSON.stringify(result.body)}</div>}
     </div>
   )
+}
+
+// Follow button component for posts
+export function FollowButton({authorId, currentUser, onChanged}){
+  const [following, setFollowing] = React.useState(false)
+  const [loading, setLoading] = React.useState(false)
+
+  async function refresh(){
+    if(!currentUser) return setFollowing(false)
+    try{
+      const res = await fetch(`${API_BASE}/user/${encodeURIComponent(currentUser)}/following`)
+      if(!res.ok) return
+      const j = await res.json()
+      setFollowing((j.following||[]).includes(authorId))
+    }catch(e){}
+  }
+
+  React.useEffect(()=>{ refresh() }, [authorId, currentUser])
+
+  async function toggle(){
+    if(!currentUser) return alert('Set current user in header to follow')
+    setLoading(true)
+    try{
+      const hdrs = {'X-User': currentUser}
+      if(!following){
+        await fetch(`${API_BASE}/user/${encodeURIComponent(authorId)}/follow`, {method:'POST', headers: hdrs})
+      }else{
+        await fetch(`${API_BASE}/user/${encodeURIComponent(authorId)}/follow`, {method:'DELETE', headers: hdrs})
+      }
+      await refresh()
+      if(onChanged) onChanged(!following)
+    }catch(e){}
+    finally{ setLoading(false) }
+  }
+
+  return <button className="plebx-btn-primary" onClick={toggle} disabled={loading}>{following? 'Following':'Follow'}</button>
 }
