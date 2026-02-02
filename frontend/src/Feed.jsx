@@ -28,7 +28,7 @@ function Avatar({name, avatar}){
 
 function Post({p}){
   return (
-    <div className="post">
+    <div className="post" onClick={()=>{ window.history.pushState({},'', `/post/${encodeURIComponent(p.id)}`); window.dispatchEvent(new PopStateEvent('popstate')) }}>
       <div className="post-row">
         <Avatar name={(p.author && (p.author.display_name||p.author.username)) || p.author_id} avatar={p.author && p.author.avatar_url} />
         <div className="post-content">
