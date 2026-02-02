@@ -29,6 +29,13 @@ def init_db():
         )
         """
     )
+    # Indexes to speed up common queries (reply lookups and ordering by created_at)
+    try:
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_posts_reply_to ON posts(reply_to)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_posts_created_at ON posts(created_at)")
+    except Exception:
+        # best-effort; some SQLite builds may behave differently
+        pass
     conn.commit()
     conn.close()
 
