@@ -12,6 +12,8 @@ export default function Admin(){
   const [suggestLoading,setSuggestLoading] = useState(false)
   const suggestTimer = useRef(null)
   const [adminToken, setAdminToken] = useState('')
+  const [showTokenModal, setShowTokenModal] = useState(true)
+  const [rememberToken, setRememberToken] = useState(false)
 
   async function submit(e){
     e.preventDefault()
@@ -103,19 +105,18 @@ export default function Admin(){
     }catch(e){ setUsersList([]); setListTotal(0) }
     finally{ setListLoading(false) }
   }
-
-  // Load admin token from localStorage on mount
+  
+  // Show token modal when admin UI opens; token kept in memory unless user opts to remember
   useEffect(()=>{
-    try{
-      const t = localStorage.getItem('plebx_admin_token') || ''
-      setAdminToken(t)
-    }catch(e){}
+    // showTokenModal is true by default; no localStorage access for security
+    setShowTokenModal(true)
   }, [])
 
-  function saveToken(){
+  function closeAndApplyToken(){
     try{
-      localStorage.setItem('plebx_admin_token', adminToken || '')
-      setStatus('Token saved')
+      if(rememberToken){ localStorage.setItem('plebx_admin_token', adminToken || '') }
+      setShowTokenModal(false)
+      setStatus('Token applied')
     }catch(e){ setStatus('Failed to save token') }
   }
 
@@ -123,6 +124,24 @@ export default function Admin(){
   return (
     <div style={{marginTop:20,padding:12,background:'#fff',borderRadius:8,boxShadow:'0 1px 3px rgba(0,0,0,0.06)'}}>
       <h3>Admin: Edit User Profile</h3>
+      {showTokenModal && (
+        <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.4)'}}>
+          <div style={{background:'#fff',padding:20,borderRadius:8,minWidth:320}}>
+            <h4>Enter Admin Token</h4>
+            <div style={{marginBottom:8}}>
+              <input placeholder="X-Admin-Token (kept in memory unless 'Remember' checked)" value={adminToken} onChange={e=>setAdminToken(e.target.value)} style={{width:'100%'}} />
+            </div>
+            <div style={{marginBottom:12}}
+>
+              <label><input type="checkbox" checked={rememberToken} onChange={e=>setRememberToken(e.target.checked)} /> Remember token</label>
+            </div>
+            <div style={{display:'flex',justifyContent:'flex-end',gap:8}}>
+              <button onClick={()=>{ setShowTokenModal(false); setAdminToken(''); }}>Cancel</button>
+              <button onClick={closeAndApplyToken}>Apply</button>
+            </div>
+          </div>
+        </div>
+      )}
       <form onSubmit={submit}>
         <div style={{marginBottom:8,display:'flex',gap:8,alignItems:'flex-start'}}>
           <div style={{flex:1}}>
