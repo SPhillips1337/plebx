@@ -88,3 +88,30 @@ body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,Arial,sa
 .gap-12{gap:12px}
 .reply-author-name{font-size:13px;font-weight:600}
 .align-self-center{align-self:center}
+
+/* indent helpers for nested replies (0..8) */
+.indent-0{margin-left:0}
+.indent-1{margin-left:12px}
+.indent-2{margin-left:24px}
+.indent-3{margin-left:36px}
+.indent-4{margin-left:54px}
+.indent-5{margin-left:72px}
+.indent-6{margin-left:90px}
+.indent-7{margin-left:108px}
+.indent-8{margin-left:126px}
+
+/* avatar hue buckets to avoid inline background styles */
+.avatar-hue-0{background:hsl(0deg 60% 45%)}
+.avatar-hue-1{background:hsl(30deg 60% 45%)}
+.avatar-hue-2{background:hsl(60deg 60% 45%)}
+.avatar-hue-3{background:hsl(90deg 60% 45%)}
+.avatar-hue-4{background:hsl(120deg 60% 45%)}
+.avatar-hue-5{background:hsl(150deg 60% 45%)}
+.avatar-hue-6{background:hsl(180deg 60% 45%)}
+.avatar-hue-7{background:hsl(210deg 60% 45%)}
+.avatar-hue-8{background:hsl(240deg 60% 45%)}
+.avatar-hue-9{background:hsl(270deg 60% 45%)}
+.avatar-hue-10{background:hsl(300deg 60% 45%)}
+.avatar-hue-11{background:hsl(330deg 60% 45%)}
+
+.plebx-avatar--image{background:transparent}

@@ -19,11 +19,13 @@ function colorFor(name){
 
 function Avatar({name, avatar}){
   if(avatar){
-    return <div className="avatar"><img className="plebx-avatar-img" src={avatar} alt={name} /></div>
+    return <div className="avatar plebx-avatar--image"><img className="plebx-avatar-img" src={avatar} alt={name} /></div>
   }
   const label = initials(name)
   const bg = colorFor(name||'')
-  return <div className="avatar" style={{background:bg}}>{label}</div>
+  // map name hash into a fixed hue bucket to avoid inline styles
+  const bucket = Math.abs(name.split('').reduce((h,c)=> ((h<<5)-h)+c.charCodeAt(0),0)) % 12
+  return <div className={"avatar avatar-hue-"+bucket}>{label}</div>
 }
 
 function Post({p, currentUser}){

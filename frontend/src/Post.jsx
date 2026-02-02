@@ -4,8 +4,10 @@ const API_BASE = 'http://localhost:8001'
 
 function ReplyNode({node, depth=0}){
   const pending = node && (node.optimistic === true || String(node.id||'').startsWith('tmp-'))
+  // clamp depth to available indent classes
+  const d = Math.max(0, Math.min(8, depth))
   return (
-    <div className="plebx-reply" style={{marginLeft: depth*18}}>
+    <div className={"plebx-reply indent-"+d}>
       <div className="plebx-reply-row">
         <div className="plebx-reply-avatar">
           {node.author && node.author.display_name ? (node.author.display_name.slice(0,2).toUpperCase()) : (node.author_id||' ').slice(0,2).toUpperCase()}
@@ -47,13 +49,13 @@ export default function PostView({postId, currentUser}){
       <div className="mb-12"><button className="plebx-back" onClick={()=>{ window.history.pushState({},'', '/'); window.dispatchEvent(new PopStateEvent('popstate')) }}>← Back to feed</button></div>
       <div className="plebx-card">
         <div className="post-row">
-          <div className="plebx-avatar" style={{background: (p.author && p.author.avatar_url) ? 'transparent' : undefined}}>
+          <div className={"plebx-avatar " + (p.author && p.author.avatar_url ? 'plebx-avatar--image' : '')}>
             {p.author && p.author.avatar_url ? <img src={p.author.avatar_url} alt="avatar" className="plebx-avatar-img" /> : ((p.author && (p.author.display_name||p.author.username)||p.author_id||' ').slice(0,2).toUpperCase())}
           </div>
           <div className="post-content">
             <div className="plebx-meta">
               <strong>{(p.author && (p.author.display_name||p.author.username)) || p.author_id}</strong>
-              <div style={{display:'flex',gap:8,alignItems:'center'}}>
+            <div className="flex gap-8 align-center">
                 <span className="plebx-score">★ {Number(p.score||0).toFixed(2)}</span>
                 <FollowButton authorId={p.author_id} currentUser={currentUser} />
               </div>
