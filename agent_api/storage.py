@@ -324,3 +324,27 @@ def get_user(user_id: str) -> Optional[Dict[str, Any]]:
         "bio": row[4],
         "raw": json.loads(row[5]) if row[5] else {},
     }
+
+
+def search_users(query: str, limit: int = 10) -> List[Dict[str, Any]]:
+    """Search users by username or display_name using a case-insensitive LIKE match."""
+    if not query:
+        return []
+    q = f"%{query}%"
+    conn = _conn()
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id, username, display_name, avatar_url, bio, raw FROM users WHERE LOWER(username) LIKE LOWER(?) OR LOWER(display_name) LIKE LOWER(?) ORDER BY username LIMIT ?",
+        (q, q, limit),
+    )
+    rows = cur.fetchall()
+    conn.close()
+    out = []
+    for r in rows:
+        out.append({
+            "id": r[0],
+            "username": r[1],
+            "display_name": r[2],
+            "avatar_url": r[3],
+        })
+    return out

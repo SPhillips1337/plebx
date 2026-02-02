@@ -8,7 +8,7 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
 from adapter import Adapter
 from ranking import RankingService
-from storage import init_db, upsert_posts, get_recent_posts, get_post_and_thread, upsert_user, get_user, get_stats
+from storage import init_db, upsert_posts, get_recent_posts, get_post_and_thread, upsert_user, get_user, get_stats, search_users
 import base64
 import json as _json
 
@@ -369,6 +369,16 @@ async def get_user_profile(user_id: str):
     if not u:
         raise HTTPException(status_code=404, detail="user not found")
     return {"ok": True, "user": u}
+
+
+@app.get("/users")
+async def users_search(query: str = "", limit: int = 10):
+    """Search users (autocomplete) by username or display_name."""
+    try:
+        results = search_users(query, limit=limit)
+        return {"ok": True, "users": results}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.post("/admin/user/{user_id}")

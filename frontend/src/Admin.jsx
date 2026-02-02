@@ -1,4 +1,4 @@
-import React, {useState} from 'react'
+import React, {useState, useRef, useEffect} from 'react'
 
 const API_BASE = 'http://localhost:8001'
 
@@ -8,6 +8,9 @@ export default function Admin(){
   const [avatarUrl,setAvatarUrl] = useState('')
   const [status,setStatus] = useState(null)
   const [loadingUser,setLoadingUser] = useState(false)
+  const [suggestions,setSuggestions] = useState([])
+  const [suggestLoading,setSuggestLoading] = useState(false)
+  const suggestTimer = useRef(null)
 
   async function submit(e){
     e.preventDefault()
@@ -52,12 +55,42 @@ export default function Admin(){
     }
   }
 
+  function onChangeUserId(v){
+    setUserId(v)
+    // debounce search
+    if(suggestTimer.current) clearTimeout(suggestTimer.current)
+    if(!v) { setSuggestions([]); return }
+    suggestTimer.current = setTimeout(async ()=>{
+      setSuggestLoading(true)
+      try{
+        const res = await fetch(`${API_BASE}/users?query=${encodeURIComponent(v)}&limit=6`)
+        const data = await res.json()
+        if(res.ok) setSuggestions(data.users || [])
+        else setSuggestions([])
+      }catch(e){ setSuggestions([]) }
+      setSuggestLoading(false)
+    }, 250)
+  }
+
+  useEffect(()=>()=>{ if(suggestTimer.current) clearTimeout(suggestTimer.current) }, [])
+
   return (
     <div style={{marginTop:20,padding:12,background:'#fff',borderRadius:8,boxShadow:'0 1px 3px rgba(0,0,0,0.06)'}}>
       <h3>Admin: Edit User Profile</h3>
       <form onSubmit={submit}>
-        <div style={{marginBottom:8,display:'flex',gap:8,alignItems:'center'}}>
-          <label style={{flex:1}}>User ID<br/><input value={userId} onChange={e=>setUserId(e.target.value)} required /></label>
+        <div style={{marginBottom:8,display:'flex',gap:8,alignItems:'flex-start'}}>
+          <div style={{flex:1}}>
+            <label>User ID<br/><input value={userId} onChange={e=>onChangeUserId(e.target.value)} required /></label>
+            {suggestions.length>0 && (
+              <div style={{border:'1px solid #e5e7eb',background:'#fff',marginTop:6,borderRadius:6,maxHeight:180,overflow:'auto'}}>
+                {suggestions.map(u=> (
+                  <div key={u.id} style={{padding:8,cursor:'pointer'}} onClick={()=>{setUserId(u.id); setSuggestions([]); setDisplayName(u.display_name||u.username||''); setAvatarUrl(u.avatar_url||'')}}>
+                    <strong style={{marginRight:8}}>{u.display_name||u.username}</strong><small style={{color:'#6b7280'}}>@{u.username}</small>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           <div style={{display:'flex',gap:8}}>
             <button type="button" onClick={loadUser} disabled={loadingUser}>{loadingUser? 'Loading...':'Load'}</button>
           </div>
