@@ -7,6 +7,7 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
 from adapter import Adapter
 from ranking import RankingService
+from storage import init_db, upsert_posts, get_recent_posts, get_post_and_thread
 
 # Optional Redis support
 try:
@@ -16,6 +17,15 @@ except Exception:
     REDIS_AVAILABLE = False
 
 app = FastAPI()
+
+
+@app.on_event("startup")
+def startup_event():
+    # initialize sqlite DB for simple persistence/cache
+    try:
+        init_db()
+    except Exception as e:
+        print("init_db failed:", e)
 
 # Config
 ENABLE_WRITEBACK = os.environ.get("ENABLE_WRITEBACK", "false").lower() in ("1", "true", "yes")
@@ -86,23 +96,34 @@ async def feed(mode: str = "ipfs", limit: int = 20):
     adapter = Adapter(mode=mode)
     ranking = RankingService()
 
-    raw_posts = adapter.fetch_recent_posts(limit=limit)
-    normalized_posts = [adapter.normalize_post(p) for p in raw_posts]
-    scored_posts = ranking.score_posts(normalized_posts)
+    if mode == "db":
+        posts = get_recent_posts(limit=limit)
+    else:
+        raw_posts = adapter.fetch_recent_posts(limit=limit)
+        normalized_posts = [adapter.normalize_post(p) for p in raw_posts]
+        # cache into DB for later use
+        try:
+            upsert_posts(normalized_posts)
+        except Exception:
+            pass
+        posts = normalized_posts
 
-    return {
-        "ok": True,
-        "posts": scored_posts,
-        "count": len(scored_posts)
-    }
+    scored_posts = ranking.score_posts(posts)
+
+    return {"ok": True, "posts": scored_posts, "count": len(scored_posts)}
 
 
 @app.get("/post/{post_id}")
 async def get_post(post_id: str, mode: str = "ipfs"):
     adapter = Adapter(mode=mode)
-    # In a real impl, we'd fetch a specific post and its thread
-    # For now, we simulate by fetching samples and finding the ID
-    posts = adapter.fetch_recent_posts(limit=100)
+    if mode == "db":
+        res = get_post_and_thread(post_id)
+        if not res:
+            raise HTTPException(status_code=404, detail="Post not found")
+        return {"ok": True, "post": res["post"], "thread": res["thread"]}
+
+    # Fallback: scan recent posts from adapter
+    posts = adapter.fetch_recent_posts(limit=200)
     for p in posts:
         normalized = adapter.normalize_post(p)
         if normalized["id"] == post_id:
