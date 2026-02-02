@@ -5,17 +5,17 @@ const API_BASE = 'http://localhost:8001'
 function ReplyNode({node, depth=0}){
   const pending = node && (node.optimistic === true || String(node.id||'').startsWith('tmp-'))
   return (
-    <div style={{marginLeft: depth*18, marginTop:8, opacity: pending ? 0.75 : 1}}>
-      <div style={{display:'flex',gap:8,alignItems:'flex-start'}}>
-        <div style={{width:40,height:40,background:'#f3f4f6',borderRadius:999,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+    <div className="plebx-reply" style={{marginLeft: depth*18}}>
+      <div className="plebx-reply-row">
+        <div className="plebx-reply-avatar">
           {node.author && node.author.display_name ? (node.author.display_name.slice(0,2).toUpperCase()) : (node.author_id||' ').slice(0,2).toUpperCase()}
         </div>
-        <div style={{flex:1}}>
-          <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
+        <div className="plebx-reply-content">
+          <div className="plebx-reply-meta">
             <div style={{fontSize:13,fontWeight:600}}>{(node.author && (node.author.display_name||node.author.username)) || node.author_id}</div>
-            {pending && <div style={{fontSize:12,color:'#6b7280'}}>⏳ Sending</div>}
+            {pending && <div className="plebx-sending">⏳ Sending</div>}
           </div>
-          <div style={{color:'#374151',marginTop:4, fontStyle: pending ? 'italic' : 'normal'}}>{node.content}</div>
+          <div className={"plebx-reply-text" + (pending? ' plebx-pending':'' )}>{node.content}</div>
         </div>
       </div>
       {node.replies && node.replies.length>0 && node.replies.map(r=> <ReplyNode key={r.id} node={r} depth={depth+1} />)}
@@ -38,7 +38,7 @@ export default function PostView({postId}){
   }, [postId])
 
   if(loading) return <div>Loading post...</div>
-  if(error) return <div style={{color:'red'}}>Error: {error}</div>
+  if(error) return <div className="plebx-error">Error: {error}</div>
   if(!data || !data.post) return <div>No post found</div>
 
   const p = data.post
@@ -48,7 +48,7 @@ export default function PostView({postId}){
       <div className="plebx-card">
         <div className="post-row">
           <div className="plebx-avatar" style={{background: (p.author && p.author.avatar_url) ? 'transparent' : undefined}}>
-            {p.author && p.author.avatar_url ? <img src={p.author.avatar_url} alt="avatar" style={{width:'100%',height:'100%',borderRadius:999,objectFit:'cover'}} /> : ((p.author && (p.author.display_name||p.author.username)||p.author_id||' ').slice(0,2).toUpperCase())}
+            {p.author && p.author.avatar_url ? <img src={p.author.avatar_url} alt="avatar" className="plebx-avatar-img" /> : ((p.author && (p.author.display_name||p.author.username)||p.author_id||' ').slice(0,2).toUpperCase())}
           </div>
           <div className="post-content">
             <div className="plebx-meta"><strong>{(p.author && (p.author.display_name||p.author.username)) || p.author_id}</strong> <span className="plebx-score">★ {Number(p.score||0).toFixed(2)}</span></div>

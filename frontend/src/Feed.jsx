@@ -19,7 +19,7 @@ function colorFor(name){
 
 function Avatar({name, avatar}){
   if(avatar){
-    return <div className="avatar" style={{padding:2}}><img src={avatar} alt={name} style={{width:'100%',height:'100%',borderRadius:999,objectFit:'cover'}} /></div>
+    return <div className="avatar"><img className="plebx-avatar-img" src={avatar} alt={name} /></div>
   }
   const label = initials(name)
   const bg = colorFor(name||'')

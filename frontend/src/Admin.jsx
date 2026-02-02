@@ -125,14 +125,13 @@ export default function Admin(){
     <div className="plebx-card" style={{marginTop:20,padding:12}}>
       <h3>Admin: Edit User Profile</h3>
       {showTokenModal && (
-        <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.4)'}}>
-          <div style={{background:'#fff',padding:20,borderRadius:8,minWidth:320}}>
+        <div className="plebx-modal-overlay">
+          <div className="plebx-modal-box">
             <h4>Enter Admin Token</h4>
             <div style={{marginBottom:8}}>
-              <input placeholder="X-Admin-Token (kept in memory unless 'Remember' checked)" value={adminToken} onChange={e=>setAdminToken(e.target.value)} style={{width:'100%'}} />
+              <input className="plebx-input" placeholder="X-Admin-Token (kept in memory unless 'Remember' checked)" value={adminToken} onChange={e=>setAdminToken(e.target.value)} />
             </div>
-            <div style={{marginBottom:12}}
->
+            <div style={{marginBottom:12}}>
               <label><input type="checkbox" checked={rememberToken} onChange={e=>setRememberToken(e.target.checked)} /> Remember token</label>
             </div>
             <div style={{display:'flex',justifyContent:'flex-end',gap:8}}>
@@ -147,10 +146,10 @@ export default function Admin(){
           <div style={{flex:1}}>
             <label>User ID<br/><input value={userId} onChange={e=>onChangeUserId(e.target.value)} required /></label>
             {suggestions.length>0 && (
-              <div style={{border:'1px solid #e5e7eb',background:'#fff',marginTop:6,borderRadius:6,maxHeight:180,overflow:'auto'}}>
+              <div className="plebx-suggestions">
                 {suggestions.map(u=> (
-                  <div key={u.id} style={{padding:8,cursor:'pointer'}} onClick={()=>{setUserId(u.id); setSuggestions([]); setDisplayName(u.display_name||u.username||''); setAvatarUrl(u.avatar_url||'')}}>
-                    <strong style={{marginRight:8}}>{u.display_name||u.username}</strong><small style={{color:'#6b7280'}}>@{u.username}</small>
+                  <div key={u.id} className="plebx-suggestion-item" onClick={()=>{setUserId(u.id); setSuggestions([]); setDisplayName(u.display_name||u.username||''); setAvatarUrl(u.avatar_url||'')}}>
+                    <strong style={{marginRight:8}}>{u.display_name||u.username}</strong><small className="plebx-muted">@{u.username}</small>
                   </div>
                 ))}
               </div>
@@ -173,15 +172,15 @@ export default function Admin(){
         {showList && (
           <div style={{marginTop:12}}>
             <div style={{marginBottom:8}}><strong>Users (page {listPage})</strong></div>
-            <div style={{border:'1px solid #e5e7eb',borderRadius:6,overflow:'hidden'}}>
+              <div style={{border:'1px solid rgba(255,255,255,0.06)',borderRadius:6,overflow:'hidden'}}>
               {usersList.map(u=> (
-                <div key={u.id} style={{display:'flex',alignItems:'center',padding:8,borderBottom:'1px solid #f3f4f6',cursor:'pointer'}} onClick={()=>{ setUserId(u.id); setDisplayName(u.display_name||u.username||''); setAvatarUrl(u.avatar_url||''); setShowList(false)} }>
-                  <div style={{width:40,height:40,overflow:'hidden',borderRadius:999,background:'#f3f4f6',display:'inline-flex',alignItems:'center',justifyContent:'center',marginRight:12}}>
-                    {u.avatar_url ? <img src={u.avatar_url} alt={u.username} style={{width:'100%',height:'100%',objectFit:'cover'}} /> : <span style={{color:'#6b7280'}}>{(u.display_name||u.username||'').slice(0,2).toUpperCase()}</span>}
+                <div key={u.id} className="plebx-user-row" onClick={()=>{ setUserId(u.id); setDisplayName(u.display_name||u.username||''); setAvatarUrl(u.avatar_url||''); setShowList(false)} }>
+                  <div className="plebx-user-avatar">
+                    {u.avatar_url ? <img src={u.avatar_url} alt={u.username} className="plebx-avatar-img" /> : <span className="plebx-muted">{(u.display_name||u.username||'').slice(0,2).toUpperCase()}</span>}
                   </div>
                   <div style={{flex:1}}>
-                    <div style={{fontWeight:600}}>{u.display_name||u.username}</div>
-                    <div style={{fontSize:12,color:'#6b7280'}}>@{u.username}</div>
+                    <div className="plebx-user-name">{u.display_name||u.username}</div>
+                    <div className="plebx-user-handle">@{u.username}</div>
                   </div>
                 </div>
               ))}
