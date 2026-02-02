@@ -122,19 +122,19 @@ export default function Admin(){
 
 
   return (
-    <div className="plebx-card" style={{marginTop:20,padding:12}}>
+    <div className="plebx-card mb-12">
       <h3>Admin: Edit User Profile</h3>
       {showTokenModal && (
         <div className="plebx-modal-overlay">
           <div className="plebx-modal-box">
             <h4>Enter Admin Token</h4>
-            <div style={{marginBottom:8}}>
+            <div className="mb-8">
               <input className="plebx-input" placeholder="X-Admin-Token (kept in memory unless 'Remember' checked)" value={adminToken} onChange={e=>setAdminToken(e.target.value)} />
             </div>
-            <div style={{marginBottom:12}}>
+            <div className="mb-12">
               <label><input type="checkbox" checked={rememberToken} onChange={e=>setRememberToken(e.target.checked)} /> Remember token</label>
             </div>
-            <div style={{display:'flex',justifyContent:'flex-end',gap:8}}>
+            <div className="flex gap-8 justify-end">
               <button onClick={()=>{ setShowTokenModal(false); setAdminToken(''); }}>Cancel</button>
               <button onClick={closeAndApplyToken}>Apply</button>
             </div>
@@ -142,52 +142,52 @@ export default function Admin(){
         </div>
       )}
       <form onSubmit={submit}>
-        <div style={{marginBottom:8,display:'flex',gap:8,alignItems:'flex-start'}}>
-          <div style={{flex:1}}>
+        <div className="mb-8 flex gap-8 align-start">
+          <div className="flex-1">
             <label>User ID<br/><input value={userId} onChange={e=>onChangeUserId(e.target.value)} required /></label>
             {suggestions.length>0 && (
               <div className="plebx-suggestions">
                 {suggestions.map(u=> (
                   <div key={u.id} className="plebx-suggestion-item" onClick={()=>{setUserId(u.id); setSuggestions([]); setDisplayName(u.display_name||u.username||''); setAvatarUrl(u.avatar_url||'')}}>
-                    <strong style={{marginRight:8}}>{u.display_name||u.username}</strong><small className="plebx-muted">@{u.username}</small>
+                    <strong className="mr-8">{u.display_name||u.username}</strong><small className="plebx-muted">@{u.username}</small>
                   </div>
                 ))}
               </div>
             )}
           </div>
-          <div style={{display:'flex',gap:8}}>
-            <button type="button" onClick={loadUser} disabled={loadingUser}>{loadingUser? 'Loading...':'Load'}</button>
-          </div>
+           <div className="flex gap-8">
+             <button type="button" onClick={loadUser} disabled={loadingUser}>{loadingUser? 'Loading...':'Load'}</button>
+           </div>
         </div>
-        <div style={{marginBottom:8}}>
+        <div className="mb-8">
           <label>Display name<br/><input value={displayName} onChange={e=>setDisplayName(e.target.value)} /></label>
         </div>
-        <div style={{marginBottom:8}}>
+        <div className="mb-8">
           <label>Avatar URL<br/><input value={avatarUrl} onChange={e=>setAvatarUrl(e.target.value)} /></label>
         </div>
-        <div><button type="submit">Save</button> <span style={{marginLeft:12}}>{status}</span></div>
+        <div><button type="submit">Save</button> <span className="ml-12">{status}</span></div>
       </form>
-      <div style={{marginTop:16}}>
-        <button onClick={()=>loadUsers(1)} disabled={listLoading}>{listLoading? 'Loading...':'Show Users'}</button>
+      <div className="mt-16">
+        <button className="plebx-btn-primary" onClick={()=>loadUsers(1)} disabled={listLoading}>{listLoading? 'Loading...':'Show Users'}</button>
         {showList && (
-          <div style={{marginTop:12}}>
-            <div style={{marginBottom:8}}><strong>Users (page {listPage})</strong></div>
-              <div style={{border:'1px solid rgba(255,255,255,0.06)',borderRadius:6,overflow:'hidden'}}>
+          <div className="mt-12">
+            <div className="mb-8"><strong>Users (page {listPage})</strong></div>
+              <div className="box-border">
               {usersList.map(u=> (
                 <div key={u.id} className="plebx-user-row" onClick={()=>{ setUserId(u.id); setDisplayName(u.display_name||u.username||''); setAvatarUrl(u.avatar_url||''); setShowList(false)} }>
                   <div className="plebx-user-avatar">
                     {u.avatar_url ? <img src={u.avatar_url} alt={u.username} className="plebx-avatar-img" /> : <span className="plebx-muted">{(u.display_name||u.username||'').slice(0,2).toUpperCase()}</span>}
                   </div>
-                  <div style={{flex:1}}>
+                  <div className="flex-1">
                     <div className="plebx-user-name">{u.display_name||u.username}</div>
                     <div className="plebx-user-handle">@{u.username}</div>
                   </div>
                 </div>
               ))}
             </div>
-            <div style={{display:'flex',justifyContent:'space-between',marginTop:8}}>
+            <div className="flex justify-between mt-8">
               <button onClick={()=>loadUsers(Math.max(1,listPage-1))} disabled={listPage<=1}>Prev</button>
-              <div style={{alignSelf:'center'}}>Total: {listTotal}</div>
+               <div className="align-self-center">Total: {listTotal}</div>
               <button onClick={()=>loadUsers(listPage+1)} disabled={listPage*listPerPage >= listTotal}>Next</button>
             </div>
           </div>

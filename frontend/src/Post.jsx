@@ -10,9 +10,9 @@ function ReplyNode({node, depth=0}){
         <div className="plebx-reply-avatar">
           {node.author && node.author.display_name ? (node.author.display_name.slice(0,2).toUpperCase()) : (node.author_id||' ').slice(0,2).toUpperCase()}
         </div>
-        <div className="plebx-reply-content">
+          <div className="plebx-reply-content">
           <div className="plebx-reply-meta">
-            <div style={{fontSize:13,fontWeight:600}}>{(node.author && (node.author.display_name||node.author.username)) || node.author_id}</div>
+            <div className="reply-author-name">{(node.author && (node.author.display_name||node.author.username)) || node.author_id}</div>
             {pending && <div className="plebx-sending">⏳ Sending</div>}
           </div>
           <div className={"plebx-reply-text" + (pending? ' plebx-pending':'' )}>{node.content}</div>
@@ -44,7 +44,7 @@ export default function PostView({postId}){
   const p = data.post
   return (
     <div className="plebx-post">
-      <div style={{marginBottom:12}}><button className="plebx-back" onClick={()=>{ window.history.pushState({},'', '/'); window.dispatchEvent(new PopStateEvent('popstate')) }}>← Back to feed</button></div>
+      <div className="mb-12"><button className="plebx-back" onClick={()=>{ window.history.pushState({},'', '/'); window.dispatchEvent(new PopStateEvent('popstate')) }}>← Back to feed</button></div>
       <div className="plebx-card">
         <div className="post-row">
           <div className="plebx-avatar" style={{background: (p.author && p.author.avatar_url) ? 'transparent' : undefined}}>
@@ -56,13 +56,13 @@ export default function PostView({postId}){
           </div>
         </div>
       </div>
-      <div style={{marginTop:16}}>
+      <div className="mt-16">
         <h4>Replies</h4>
         {(!data.thread || data.thread.length===0) && <div>No replies</div>}
         {data.thread && data.thread.map(r=> <ReplyNode key={r.id} node={r} depth={0} />)}
       </div>
 
-      <div style={{marginTop:20}}>
+      <div className="mt-20">
         <h4>Write a reply</h4>
         <Composer
           postId={postId}
@@ -149,20 +149,20 @@ function Composer({postId, onPosted, onOptimistic, onRemoveOptimistic, onReplace
   return (
     <div className="plebx-compose">
       <form onSubmit={submit}>
-        <div style={{marginBottom:8}}>
+        <div className="mb-8">
           <label>From (X-User header)<br/><input className="plebx-input" value={userId} onChange={e=>setUserId(e.target.value)} placeholder="user id" required /></label>
         </div>
-        <div style={{marginBottom:8}}>
+        <div className="mb-8">
           <label>Reply content<br/><textarea className="plebx-textarea" value={content} onChange={e=>setContent(e.target.value)} rows={4} required/></label>
         </div>
-        <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:8}}>
+        <div className="flex align-center gap-12 mb-8">
           <label><input type="checkbox" checked={dryRun} onChange={e=>setDryRun(e.target.checked)} /> Dry run (preview)</label>
-          <div style={{flex:1}} />
+          <div className="flex-1" />
           <button type="submit" className="plebx-btn-primary" disabled={loading}>{loading? 'Posting...':'Post Reply'}</button>
         </div>
       </form>
-      {result && result.error && <div style={{color:'red',marginTop:8}}>Error: {String(result.error)}</div>}
-      {result && result.ok && <div style={{color:'green',marginTop:8}}>Success: {JSON.stringify(result.body)}</div>}
+      {result && result.error && <div className="plebx-error">Error: {String(result.error)}</div>}
+      {result && result.ok && <div className="plebx-success">Success: {JSON.stringify(result.body)}</div>}
     </div>
   )
 }
