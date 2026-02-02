@@ -369,3 +369,35 @@ async def get_user_profile(user_id: str):
     if not u:
         raise HTTPException(status_code=404, detail="user not found")
     return {"ok": True, "user": u}
+
+
+@app.post("/admin/user/{user_id}")
+async def admin_upsert_user(user_id: str, payload: Dict[str, Any], request: Request = None):
+    """Upsert a user profile. Requires ADMIN_TOKEN env var if set.
+
+    Payload example: {"display_name":"Name","avatar_url":"https://...","username":"user1","bio":"..."}
+    """
+    from fastapi import status
+
+    ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN")
+    if ADMIN_TOKEN:
+        header = None
+        if request:
+            header = request.headers.get("X-Admin-Token")
+        if header != ADMIN_TOKEN:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="admin token required")
+
+    try:
+        user_obj = {
+            "id": user_id,
+            "username": payload.get("username") or user_id,
+            "display_name": payload.get("display_name"),
+            "avatar_url": payload.get("avatar_url"),
+            "bio": payload.get("bio"),
+            "raw": payload,
+        }
+        upsert_user(user_obj)
+        u = get_user(user_id)
+        return {"ok": True, "user": u}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
