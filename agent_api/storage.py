@@ -62,6 +62,16 @@ def init_db():
         conn.close()
     except Exception:
         pass
+    # Indexes for follows
+    try:
+        conn = _conn()
+        cur = conn.cursor()
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_follows_follower ON follows(follower_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_follows_followee ON follows(followee_id)")
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
 
 
 def init_users_table():
@@ -163,9 +173,13 @@ def get_recent_posts(limit: int = 50) -> List[Dict[str, Any]]:
             "engagement": json.loads(r[6]) if r[6] else {},
             "raw": json.loads(r[7]) if r[7] else {},
         }
-        # attach author profile if available
+        # attach author profile and counts if available
         try:
             user = get_user(post.get("author_id"))
+            if user:
+                followers = get_followers(user.get("id"))
+                following = get_following(user.get("id"))
+                user["counts"] = {"followers": len(followers), "following": len(following)}
             post["author"] = user
         except Exception:
             post["author"] = None

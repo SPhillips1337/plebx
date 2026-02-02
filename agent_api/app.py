@@ -9,6 +9,12 @@ from datetime import datetime, timezone
 from adapter import Adapter
 from ranking import RankingService
 from storage import init_db, upsert_posts, get_recent_posts, get_post_and_thread, upsert_user, get_user, get_stats, search_users, list_users, count_users, follow_user, unfollow_user, get_following, get_followers, get_recent_posts_by_authors
+import redis as _redis
+REDIS_URL = os.environ.get("REDIS_URL", "redis://redis:6379/0")
+try:
+    _redis_client = _redis.from_url(REDIS_URL)
+except Exception:
+    _redis_client = None
 import base64
 import uuid
 import json as _json
@@ -422,6 +428,13 @@ async def api_follow(user_id: str, request: Request):
         raise HTTPException(status_code=400, detail="X-User header required")
     try:
         follow_user(caller, user_id)
+        # invalidate cache in redis for counts
+        try:
+            if _redis_client:
+                _redis_client.delete(f"user:{user_id}:counts")
+                _redis_client.delete(f"user:{caller}:counts")
+        except Exception:
+            pass
         return {"ok": True, "follower": caller, "followee": user_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -434,6 +447,12 @@ async def api_unfollow(user_id: str, request: Request):
         raise HTTPException(status_code=400, detail="X-User header required")
     try:
         unfollow_user(caller, user_id)
+        try:
+            if _redis_client:
+                _redis_client.delete(f"user:{user_id}:counts")
+                _redis_client.delete(f"user:{caller}:counts")
+        except Exception:
+            pass
         return {"ok": True, "follower": caller, "unfollowed": user_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -461,9 +480,25 @@ async def api_get_followers(user_id: str):
 async def api_get_user_counts(user_id: str):
     """Return follower and following counts for a user."""
     try:
+        # try cache
+        if _redis_client:
+            key = f"user:{user_id}:counts"
+            try:
+                cached = _redis_client.get(key)
+                if cached:
+                    return {"ok": True, "counts": _json.loads(cached)}
+            except Exception:
+                pass
+
         followers = get_followers(user_id)
         following = get_following(user_id)
-        return {"ok": True, "counts": {"followers": len(followers), "following": len(following)}}
+        counts = {"followers": len(followers), "following": len(following)}
+        try:
+            if _redis_client:
+                _redis_client.setex(key, 60, _json.dumps(counts))
+        except Exception:
+            pass
+        return {"ok": True, "counts": counts}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
