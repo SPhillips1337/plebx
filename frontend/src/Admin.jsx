@@ -122,7 +122,7 @@ export default function Admin(){
 
 
   return (
-    <div style={{marginTop:20,padding:12,background:'#fff',borderRadius:8,boxShadow:'0 1px 3px rgba(0,0,0,0.06)'}}>
+    <div className="plebx-card" style={{marginTop:20,padding:12}}>
       <h3>Admin: Edit User Profile</h3>
       {showTokenModal && (
         <div style={{position:'fixed',left:0,top:0,right:0,bottom:0,display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(0,0,0,0.4)'}}>

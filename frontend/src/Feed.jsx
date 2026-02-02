@@ -76,7 +76,7 @@ export default function Feed(){
   return (
     <div>
       <div id="feed">
-        {posts.map(p=> <Post key={p.id} p={p} />)}
+        {posts.map(p=> <Post key={p.id} p={p} className="plebx-post" />)}
         {posts.length===0 && !loading && <div>No posts</div>}
       </div>
       {nextCursor && <div style={{textAlign:'center',marginTop:12}}><button onClick={()=>load(nextCursor,true)} disabled={loading}>{loading? 'Loading...':'Load more'}</button></div>}

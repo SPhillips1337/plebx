@@ -24,7 +24,7 @@ export default function App(){
   }, [])
 
   return (
-    <div style={{fontFamily:'Inter,system-ui,Arial,sans-serif',padding:24,background:'linear-gradient(180deg,#f7fafc,#fff)'}}>
+    <div className="plebx-app" style={{fontFamily:'Inter,system-ui,Arial,sans-serif'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
         <h1>PlebX — Feed (MVP)</h1>
         <div><button onClick={()=>setShowAdmin(s=>!s)}>{showAdmin? 'Close Admin':'Open Admin'}</button></div>

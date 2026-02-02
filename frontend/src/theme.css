@@ -1,0 +1,33 @@
+:root{
+  --bg: #0b1220;
+  --surface: #071426;
+  --text: #e6eef6;
+  --muted: #9ca3af;
+  --primary: #1d9bf0;
+  --primary-600: #1687d6;
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --shadow-sm: 0 6px 18px rgba(2,6,23,0.6);
+}
+
+html,body,#root{height:100%}
+body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,Arial,sans-serif}
+
+.plebx-app{padding:20px;max-width:980px;margin:0 auto}
+
+.plebx-card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:var(--radius-md);box-shadow:var(--shadow-sm);padding:12px}
+
+.plebx-post{background:transparent;border-radius:var(--radius-md);padding:12px;display:block}
+.plebx-post .plebx-avatar{width:48px;height:48px;border-radius:999px;flex:0 0 48px;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+.plebx-meta{font-size:13px;color:var(--muted);display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.plebx-score{color:var(--primary);margin-left:8px}
+.plebx-btn-primary{background:var(--primary);color:white;padding:8px 12px;border-radius:999px;border:none}
+.plebx-pending{opacity:0.75;font-style:italic;color:var(--muted)}
+
+.plebx-compose{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:12px;border-radius:10px}
+
+/* responsive tweaks */
+@media (max-width:600px){
+  .plebx-post{padding:10px}
+  .plebx-avatar{width:40px;height:40px}
+}

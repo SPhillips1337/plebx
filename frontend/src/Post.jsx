@@ -43,9 +43,9 @@ export default function PostView({postId}){
 
   const p = data.post
   return (
-    <div>
+    <div className="plebx-post">
       <button onClick={()=>{ window.history.pushState({},'', '/'); window.dispatchEvent(new PopStateEvent('popstate')) }} style={{marginBottom:12}}>← Back to feed</button>
-      <div style={{background:'#fff',padding:16,borderRadius:12,boxShadow:'0 4px 12px rgba(12,20,30,0.06)'}}>
+      <div className="plebx-card">
         <div style={{display:'flex',gap:12}}>
           <div style={{width:56,height:56,borderRadius:999,background:'#f3f4f6',display:'flex',alignItems:'center',justifyContent:'center'}}>
             {(p.author && (p.author.display_name||p.author.username)||p.author_id||' ').slice(0,2).toUpperCase()
