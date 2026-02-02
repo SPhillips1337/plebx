@@ -3,15 +3,19 @@ import React, {useEffect, useState} from 'react'
 const API_BASE = 'http://localhost:8001'
 
 function ReplyNode({node, depth=0}){
+  const pending = node && (node.optimistic === true || String(node.id||'').startsWith('tmp-'))
   return (
-    <div style={{marginLeft: depth*18, marginTop:8}}>
-      <div style={{display:'flex',gap:8}}>
-        <div style={{width:40,height:40,background:'#f3f4f6',borderRadius:999,display:'flex',alignItems:'center',justifyContent:'center'}}>
+    <div style={{marginLeft: depth*18, marginTop:8, opacity: pending ? 0.75 : 1}}>
+      <div style={{display:'flex',gap:8,alignItems:'flex-start'}}>
+        <div style={{width:40,height:40,background:'#f3f4f6',borderRadius:999,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
           {node.author && node.author.display_name ? (node.author.display_name.slice(0,2).toUpperCase()) : (node.author_id||' ').slice(0,2).toUpperCase()}
         </div>
         <div style={{flex:1}}>
-          <div style={{fontSize:13,fontWeight:600}}>{(node.author && (node.author.display_name||node.author.username)) || node.author_id}</div>
-          <div style={{color:'#374151',marginTop:4}}>{node.content}</div>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline'}}>
+            <div style={{fontSize:13,fontWeight:600}}>{(node.author && (node.author.display_name||node.author.username)) || node.author_id}</div>
+            {pending && <div style={{fontSize:12,color:'#6b7280'}}>⏳ Sending</div>}
+          </div>
+          <div style={{color:'#374151',marginTop:4, fontStyle: pending ? 'italic' : 'normal'}}>{node.content}</div>
         </div>
       </div>
       {node.replies && node.replies.length>0 && node.replies.map(r=> <ReplyNode key={r.id} node={r} depth={depth+1} />)}
@@ -109,7 +113,7 @@ function Composer({postId, onPosted, onOptimistic, onRemoveOptimistic, onReplace
     try{
       // create optimistic node
       const tmpId = 'tmp-' + Date.now()
-      const tmpNode = { id: tmpId, author_id: userId, content: content, created_at: new Date().toISOString(), replies: [], author: { username: userId, display_name: userId }, reply_to: postId }
+      const tmpNode = { id: tmpId, author_id: userId, content: content, created_at: new Date().toISOString(), replies: [], author: { username: userId, display_name: userId }, reply_to: postId, optimistic: true }
       try{ if(onOptimistic) onOptimistic(tmpNode) }catch(e){}
 
       const body = { user: userId, content: content, reply_to: postId, dry_run: dryRun }
