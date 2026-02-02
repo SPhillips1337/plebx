@@ -457,6 +457,17 @@ async def api_get_followers(user_id: str):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/user/{user_id}/counts")
+async def api_get_user_counts(user_id: str):
+    """Return follower and following counts for a user."""
+    try:
+        followers = get_followers(user_id)
+        following = get_following(user_id)
+        return {"ok": True, "counts": {"followers": len(followers), "following": len(following)}}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/admin/users")
 async def admin_list_users(page: int = 1, per_page: int = 20, request: Request = None):
     """Admin: paginated list of users. Requires ADMIN_TOKEN if set."""

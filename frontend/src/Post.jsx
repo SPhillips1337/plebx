@@ -208,5 +208,9 @@ export function FollowButton({authorId, currentUser, onChanged}){
     finally{ setLoading(false) }
   }
 
-  return <button className="plebx-btn-primary" onClick={toggle} disabled={loading}>{following? 'Following':'Follow'}</button>
+  return (
+    <button className="plebx-btn-primary" onClick={(e)=>{ e.stopPropagation(); toggle() }} disabled={loading}>
+      {loading ? <span className="plebx-spinner"/> : (following ? 'Following' : 'Follow')}
+    </button>
+  )
 }

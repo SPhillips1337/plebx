@@ -11,16 +11,22 @@ function NavItem({icon, label, onClick, active}){
 
 export default function LeftSidebar({onHome, currentRoute, currentUser}){
   const [profile, setProfile] = useState(null)
+  const [counts, setCounts] = useState({followers:0, following:0})
 
   useEffect(()=>{
     let mounted = true
     async function load(){
-      if(!currentUser) { setProfile(null); return }
+      if(!currentUser) { setProfile(null); setCounts({followers:0, following:0}); return }
       try{
         const res = await fetch(`/user/${encodeURIComponent(currentUser)}`)
+        const cr = await fetch(`/user/${encodeURIComponent(currentUser)}/counts`)
         if(!res.ok) return
         const j = await res.json()
-        if(mounted) setProfile(j.user)
+        const cj = await cr.json()
+        if(mounted) {
+          setProfile(j.user)
+          if(cj && cj.counts) setCounts(cj.counts)
+        }
       }catch(e){}
     }
     load()
@@ -59,6 +65,7 @@ export default function LeftSidebar({onHome, currentRoute, currentUser}){
         <div className="plebx-user-meta">
           <div className="plebx-user-name">{profile? (profile.display_name || profile.username) : 'Guest'}</div>
           <div className="plebx-user-handle">{profile? '@'+(profile.username||profile.id) : '@guest'}</div>
+          <div className="plebx-small-muted mt-8">{counts.followers} Followers · {counts.following} Following</div>
         </div>
       </div>
     </aside>

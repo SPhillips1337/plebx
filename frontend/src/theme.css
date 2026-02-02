@@ -143,3 +143,9 @@ body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,Arial,sa
 .plebx-nav-item, .plebx-post-btn button, .plebx-profile-tile{transition:transform .12s ease, background .12s ease, box-shadow .12s ease}
 .plebx-nav-item:active{transform:scale(.98)}
 .plebx-btn-primary:hover{filter:brightness(1.05);transform:translateY(-1px)}
+
+/* spinner */
+.plebx-spinner{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,0.18);border-top-color:var(--text);animation:spin 0.8s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.plebx-nav-item.active span.material-symbols-outlined{color:var(--primary)}
