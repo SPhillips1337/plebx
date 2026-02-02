@@ -102,10 +102,10 @@ function Composer({postId, onPosted, onOptimistic, onRemoveOptimistic}){
     try{
       // create optimistic node
       const tmpId = 'tmp-' + Date.now()
-      const tmpNode = { id: tmpId, author_id: userId, content: content, created_at: new Date().toISOString(), replies: [], author: { username: userId, display_name: userId } }
+      const tmpNode = { id: tmpId, author_id: userId, content: content, created_at: new Date().toISOString(), replies: [], author: { username: userId, display_name: userId }, reply_to: postId }
       try{ if(onOptimistic) onOptimistic(tmpNode) }catch(e){}
 
-      const body = { user: userId, content: content, dry_run: dryRun }
+      const body = { user: userId, content: content, reply_to: postId, dry_run: dryRun }
       const res = await fetch(`${API_BASE}/post`, { method: 'POST', headers: { 'Content-Type':'application/json', 'X-User': userId }, body: JSON.stringify(body) })
       let json = null
       try{ json = await res.json() }catch(e){ json = null }
