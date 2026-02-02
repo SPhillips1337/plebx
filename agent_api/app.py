@@ -202,7 +202,15 @@ async def feed(mode: str = "ipfs", limit: int = 20, cursor: Optional[str] = None
             pass
         posts = normalized_posts
 
-    scored_posts = ranking.score_posts(posts)
+    # If viewer provided and not in follows mode, pass following set to ranking for personalization
+    viewer_following_set = None
+    if viewer and mode != 'follows':
+        try:
+            viewer_following_set = set(get_following(viewer))
+        except Exception:
+            viewer_following_set = None
+
+    scored_posts = ranking.score_posts(posts, viewer_following=viewer_following_set)
 
     # Apply cursor filtering
     if cursor:
