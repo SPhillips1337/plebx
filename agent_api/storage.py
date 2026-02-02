@@ -88,7 +88,19 @@ def get_recent_posts(limit: int = 50) -> List[Dict[str, Any]]:
     return out
 
 
-def get_post_and_thread(post_id: str) -> Optional[Dict[str, Any]]:
+def get_post_and_thread(post_id: str, depth: int = 3, page: int = 1, per_page: int = 20) -> Optional[Dict[str, Any]]:
+    """Return the post and a paginated, depth-limited thread.
+
+    - depth: how many levels of replies to include (1 = direct replies only).
+    - page / per_page: paginate the top-level replies (those replying directly to post_id).
+    """
+    # enforce sane limits
+    MAX_DEPTH = 6
+    MAX_PER_PAGE = 200
+    depth = max(0, min(int(depth), MAX_DEPTH))
+    per_page = max(1, min(int(per_page), MAX_PER_PAGE))
+    page = max(1, int(page))
+
     conn = _conn()
     cur = conn.cursor()
     cur.execute("SELECT id, author_id, content, created_at, attachments, reply_to, engagement, raw FROM posts WHERE id = ?", (post_id,))
@@ -107,7 +119,8 @@ def get_post_and_thread(post_id: str) -> Optional[Dict[str, Any]]:
         "engagement": json.loads(row[6]) if row[6] else {},
         "raw": json.loads(row[7]) if row[7] else {},
     }
-    # Build a thread tree by loading posts and mapping replies -> children
+
+    # Load all posts (small DB assumption). We will paginate top-level replies only.
     cur.execute("SELECT id, author_id, content, created_at, attachments, reply_to, engagement, raw FROM posts ORDER BY datetime(created_at) ASC")
     rows = cur.fetchall()
 
@@ -131,20 +144,35 @@ def get_post_and_thread(post_id: str) -> Optional[Dict[str, Any]]:
         parent = p.get("reply_to")
         children_map.setdefault(parent, []).append(p)
 
-    # Recursive builder: attach 'replies' list to each node
-    def build_tree(node_id):
-        children = []
+    # Build replies recursively with depth limit
+    def build_replies_for(node_id, depth_remaining):
+        if depth_remaining <= 0:
+            return []
+        out = []
         for child in children_map.get(node_id) or []:
-            # deep copy minimal fields and attach replies
             c = dict(child)
-            c["replies"] = build_tree(child["id"])
-            children.append(c)
-        return children
+            # attach nested replies
+            c["replies"] = build_replies_for(child["id"], depth_remaining - 1)
+            out.append(c)
+        return out
 
-    thread = build_tree(post_id)
+    top_children = children_map.get(post_id, []) or []
+    total_top = len(top_children)
+    start = (page - 1) * per_page
+    end = start + per_page
+    paged_children = top_children[start:end]
+
+    # For each paged child, build nested replies up to (depth-1)
+    thread = []
+    for child in paged_children:
+        node = dict(child)
+        node["replies"] = build_replies_for(child["id"], depth - 1)
+        thread.append(node)
 
     conn.close()
-    return {"post": post, "thread": thread}
+
+    meta = {"page": page, "per_page": per_page, "total_top_replies": total_top, "depth": depth}
+    return {"post": post, "thread": thread, "meta": meta}
 
 
 def get_stats() -> Dict[str, Any]:
