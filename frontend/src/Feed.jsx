@@ -34,7 +34,21 @@ function Post({p, currentUser}){
       <div className="post-row">
         <Avatar name={(p.author && (p.author.display_name||p.author.username)) || p.author_id} avatar={p.author && p.author.avatar_url} />
         <div className="post-content">
-          <div className="meta"><strong>{(p.author && (p.author.display_name||p.author.username)) || p.author_id}</strong> <span className="score">★ {Number(p.score||0).toFixed(2)}</span></div>
+          <div className="meta" style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <div>
+              <strong>{(p.author && (p.author.display_name||p.author.username)) || p.author_id}</strong>
+              <div className="plebx-small-muted" style={{marginLeft:8,display:'inline-block'}}>{p.author && p.author.counts ? `${p.author.counts.followers} followers` : ''}</div>
+            </div>
+            <div>
+              {/* Follow button placed here; stopPropagation handled in the button */}
+              <FollowButton authorId={p.author_id} currentUser={currentUser} onChanged={(nowFollowing)=>{
+                // optimistic update of local posts author follower counts
+                // update posts in parent via a custom event
+                const ev = new CustomEvent('plebx:follow', { detail: { authorId: p.author_id, nowFollowing } })
+                window.dispatchEvent(ev)
+              }} />
+            </div>
+          </div>
           <div className="content-text">{p.content}</div>
           {p.attachments && p.attachments.length>0 && (
             <div className="attachments">
@@ -74,6 +88,25 @@ export default function Feed({currentUser}){
   }
 
   useEffect(()=>{ load(null,false) }, [])
+
+  // Listen for follow events to update counts optimistically
+  useEffect(()=>{
+    function onFollow(e){
+      const { authorId, nowFollowing } = e.detail || {}
+      if(!authorId) return
+      setPosts(prev => prev.map(p => {
+        if(p.author_id === authorId){
+          const a = p.author || { counts: { followers: 0, following: 0 } }
+          const counts = Object.assign({}, a.counts || { followers:0, following:0 })
+          counts.followers = Math.max(0, counts.followers + (nowFollowing ? 1 : -1))
+          return { ...p, author: { ...(p.author||{}), counts } }
+        }
+        return p
+      }))
+    }
+    window.addEventListener('plebx:follow', onFollow)
+    return ()=> window.removeEventListener('plebx:follow', onFollow)
+  }, [])
 
   return (
     <div>
