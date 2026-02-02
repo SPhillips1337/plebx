@@ -71,7 +71,7 @@ export default function PostView({postId}){
               return {...prev, thread: [node, ...thread]}
             })
           }}
-          onPosted={()=>{
+           onPosted={()=>{
             // refresh thread after posting (server authoritative)
             fetch(`${API_BASE}/post/${encodeURIComponent(postId)}?mode=db&depth=4&page=1&per_page=20`).then(r=>r.json()).then(j=>setData(j)).catch(()=>{})
           }}
@@ -79,6 +79,13 @@ export default function PostView({postId}){
             setData(prev=>{
               if(!prev) return prev
               const thread = (prev.thread||[]).filter(n=>n.id !== tmpId)
+              return {...prev, thread}
+            })
+          }}
+          onReplaceOptimistic={(tmpId, created) => {
+            setData(prev => {
+              if(!prev) return prev
+              const thread = (prev.thread || []).map(n => n.id === tmpId ? created : n)
               return {...prev, thread}
             })
           }}
@@ -109,10 +116,27 @@ function Composer({postId, onPosted, onOptimistic, onRemoveOptimistic}){
       const res = await fetch(`${API_BASE}/post`, { method: 'POST', headers: { 'Content-Type':'application/json', 'X-User': userId }, body: JSON.stringify(body) })
       let json = null
       try{ json = await res.json() }catch(e){ json = null }
-      if(!res.ok){ setResult({ error: json || `status ${res.status}` }) }
-      else { setResult({ ok: true, body: json })
+      if(!res.ok){
+        setResult({ error: json || `status ${res.status}` })
+        // remove optimistic node on failure
+        try{ if(onRemoveOptimistic) onRemoveOptimistic(tmpId) }catch(e){}
+      } else {
+        setResult({ ok: true, body: json })
         setContent('')
-        if(onPosted) onPosted()
+        // If server returned a created post, replace the optimistic node with server data
+        if(json && json.created){
+          try{ if(onOptimistic){ /* replace handler not provided here */ } }catch(e){}
+          try{ if(typeof onRemoveOptimistic === 'function' && typeof onOptimistic === 'function'){} }catch(e){}
+          // call a dedicated replace callback if provided
+          if(typeof onReplaceOptimistic === 'function'){
+            onReplaceOptimistic(tmpId, json.created)
+          } else if(onPosted){
+            // fallback: refresh thread
+            onPosted()
+          }
+        } else {
+          if(onPosted) onPosted()
+        }
       }
       // if failed, remove optimistic node
       if(!res.ok){ try{ if(onRemoveOptimistic) onRemoveOptimistic(tmpId) }catch(e){} }

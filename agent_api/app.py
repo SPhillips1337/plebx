@@ -10,6 +10,7 @@ from adapter import Adapter
 from ranking import RankingService
 from storage import init_db, upsert_posts, get_recent_posts, get_post_and_thread, upsert_user, get_user, get_stats, search_users, list_users, count_users
 import base64
+import uuid
 import json as _json
 
 # Optional Redis support
@@ -66,6 +67,7 @@ class TriageRequest(BaseModel):
 class PublishRequest(BaseModel):
     user: str
     content: str
+    reply_to: Optional[str] = None
     namespace: Optional[str] = None
     tags: Optional[Dict[str, str]] = None
     dry_run: Optional[bool] = True
@@ -248,9 +250,34 @@ async def publish(req: PublishRequest, request: Request):
     if profanity:
         record["flag"] = "profanity"
 
-    # If dry_run or writeback disabled, return preview
+    # If dry_run or writeback disabled, persist locally for dev UX and return preview
     if req.dry_run or not ENABLE_WRITEBACK:
-        return {"ok": True, "dry_run": True, "record": record}
+        # create a normalized post and upsert to sqlite so it appears in the dev feed
+        created = None
+        try:
+            normalized = {
+                "id": f"local-{uuid.uuid4().hex[:8]}",
+                "author_id": req.user,
+                "content": req.content,
+                "created_at": record["timestamp"],
+                "attachments": [],
+                "reply_to": getattr(req, "reply_to", None),
+                "engagement": {},
+                "raw": {"origin": "plebx-local", "record": record},
+            }
+            try:
+                upsert_posts([normalized])
+                created = normalized
+            except Exception:
+                # best-effort; do not fail the publish because of local DB issues
+                created = None
+        except Exception:
+            created = None
+
+        resp = {"ok": True, "dry_run": True, "record": record}
+        if created is not None:
+            resp["created"] = created
+        return resp
 
     # Construct the envelope to enqueue for actual write-back
     envelope = {
