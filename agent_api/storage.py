@@ -38,6 +38,30 @@ def init_db():
         pass
     conn.commit()
     conn.close()
+    # Ensure users table exists as well
+    try:
+        init_users_table()
+    except Exception:
+        pass
+
+
+def init_users_table():
+    conn = _conn()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS users (
+            id TEXT PRIMARY KEY,
+            username TEXT,
+            display_name TEXT,
+            avatar_url TEXT,
+            bio TEXT,
+            raw TEXT
+        )
+        """
+    )
+    conn.commit()
+    conn.close()
 
 
 def upsert_posts(posts: List[Dict[str, Any]]):
@@ -71,6 +95,36 @@ def upsert_posts(posts: List[Dict[str, Any]]):
     conn.commit()
     conn.close()
 
+    # After posts are upserted, optionally upsert simple user profiles derived from posts
+    for p in posts:
+        try:
+            raw = p.get("raw") or {}
+            author_id = p.get("author_id")
+            profile = None
+            # look for common profile shapes
+            if isinstance(raw, dict):
+                profile = raw.get("author_profile") or raw.get("author_meta")
+                # fallback fields
+                if not profile:
+                    display = raw.get("author_display_name") or raw.get("author_name")
+                    avatar = raw.get("author_avatar") or raw.get("author_avatar_url")
+                    if display or avatar:
+                        profile = {"id": author_id, "display_name": display, "avatar_url": avatar}
+            if profile:
+                try:
+                    upsert_user({
+                        "id": profile.get("id") or author_id,
+                        "username": profile.get("username") or author_id,
+                        "display_name": profile.get("display_name") or profile.get("name"),
+                        "avatar_url": profile.get("avatar_url") or profile.get("avatar"),
+                        "bio": profile.get("bio"),
+                        "raw": profile,
+                    })
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
 
 def get_recent_posts(limit: int = 50) -> List[Dict[str, Any]]:
     conn = _conn()
@@ -80,18 +134,23 @@ def get_recent_posts(limit: int = 50) -> List[Dict[str, Any]]:
     conn.close()
     out = []
     for r in rows:
-        out.append(
-            {
-                "id": r[0],
-                "author_id": r[1],
-                "content": r[2],
-                "created_at": r[3],
-                "attachments": json.loads(r[4]) if r[4] else [],
-                "reply_to": r[5],
-                "engagement": json.loads(r[6]) if r[6] else {},
-                "raw": json.loads(r[7]) if r[7] else {},
-            }
-        )
+        post = {
+            "id": r[0],
+            "author_id": r[1],
+            "content": r[2],
+            "created_at": r[3],
+            "attachments": json.loads(r[4]) if r[4] else [],
+            "reply_to": r[5],
+            "engagement": json.loads(r[6]) if r[6] else {},
+            "raw": json.loads(r[7]) if r[7] else {},
+        }
+        # attach author profile if available
+        try:
+            user = get_user(post.get("author_id"))
+            post["author"] = user
+        except Exception:
+            post["author"] = None
+        out.append(post)
     return out
 
 
@@ -126,6 +185,10 @@ def get_post_and_thread(post_id: str, depth: int = 3, page: int = 1, per_page: i
         "engagement": json.loads(row[6]) if row[6] else {},
         "raw": json.loads(row[7]) if row[7] else {},
     }
+    try:
+        post["author"] = get_user(post.get("author_id"))
+    except Exception:
+        post["author"] = None
 
     # Load all posts (small DB assumption). We will paginate top-level replies only.
     cur.execute("SELECT id, author_id, content, created_at, attachments, reply_to, engagement, raw FROM posts ORDER BY datetime(created_at) ASC")
@@ -150,6 +213,13 @@ def get_post_and_thread(post_id: str, depth: int = 3, page: int = 1, per_page: i
         posts_by_id[p["id"]] = p
         parent = p.get("reply_to")
         children_map.setdefault(parent, []).append(p)
+
+    # attach author profiles for all loaded posts
+    for pid, post in posts_by_id.items():
+        try:
+            post["author"] = get_user(post.get("author_id"))
+        except Exception:
+            post["author"] = None
 
     # Build replies recursively with depth limit
     def build_replies_for(node_id, depth_remaining):
@@ -207,3 +277,50 @@ def get_stats() -> Dict[str, Any]:
         pass
 
     return stats
+
+
+def upsert_user(user: Dict[str, Any]):
+    conn = _conn()
+    cur = conn.cursor()
+    cur.execute(
+        """
+        INSERT INTO users (id, username, display_name, avatar_url, bio, raw)
+        VALUES (?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          username=excluded.username,
+          display_name=excluded.display_name,
+          avatar_url=excluded.avatar_url,
+          bio=excluded.bio,
+          raw=excluded.raw
+        """,
+        (
+            user.get("id"),
+            user.get("username"),
+            user.get("display_name"),
+            user.get("avatar_url"),
+            user.get("bio"),
+            json.dumps(user.get("raw") or {}),
+        ),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_user(user_id: str) -> Optional[Dict[str, Any]]:
+    if not user_id:
+        return None
+    conn = _conn()
+    cur = conn.cursor()
+    cur.execute("SELECT id, username, display_name, avatar_url, bio, raw FROM users WHERE id = ?", (user_id,))
+    row = cur.fetchone()
+    conn.close()
+    if not row:
+        return None
+    return {
+        "id": row[0],
+        "username": row[1],
+        "display_name": row[2],
+        "avatar_url": row[3],
+        "bio": row[4],
+        "raw": json.loads(row[5]) if row[5] else {},
+    }

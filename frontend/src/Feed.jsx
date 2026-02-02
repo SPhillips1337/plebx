@@ -17,9 +17,12 @@ function colorFor(name){
   return `hsl(${hue}deg 65% 45%)`
 }
 
-function Avatar({name}){
+function Avatar({name, avatar}){
+  if(avatar){
+    return <div className="avatar" style={{padding:2}}><img src={avatar} alt={name} style={{width:'100%',height:'100%',borderRadius:999,objectFit:'cover'}} /></div>
+  }
   const label = initials(name)
-  const bg = colorFor(name)
+  const bg = colorFor(name||'')
   return <div className="avatar" style={{background:bg}}>{label}</div>
 }
 
@@ -27,9 +30,9 @@ function Post({p}){
   return (
     <div className="post">
       <div className="post-row">
-        <Avatar name={p.author_id} />
+        <Avatar name={(p.author && (p.author.display_name||p.author.username)) || p.author_id} avatar={p.author && p.author.avatar_url} />
         <div className="post-content">
-          <div className="meta"><strong>{p.author_id}</strong> <span className="score">★ {Number(p.score||0).toFixed(2)}</span></div>
+          <div className="meta"><strong>{(p.author && (p.author.display_name||p.author.username)) || p.author_id}</strong> <span className="score">★ {Number(p.score||0).toFixed(2)}</span></div>
           <div className="content-text">{p.content}</div>
           {p.attachments && p.attachments.length>0 && (
             <div className="attachments">

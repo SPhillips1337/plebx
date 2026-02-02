@@ -358,3 +358,14 @@ async def admin_status(request: Request = None):
         raise HTTPException(status_code=500, detail=f"failed to read stats: {e}")
 
     return {"ok": True, "stats": stats}
+
+
+@app.get("/user/{user_id}")
+async def get_user_profile(user_id: str):
+    try:
+        u = get_user(user_id)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    if not u:
+        raise HTTPException(status_code=404, detail="user not found")
+    return {"ok": True, "user": u}
