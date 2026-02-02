@@ -61,16 +61,34 @@ export default function PostView({postId}){
 
       <div style={{marginTop:20}}>
         <h4>Write a reply</h4>
-        <Composer postId={postId} onPosted={()=>{
-          // refresh thread after posting
-          fetch(`${API_BASE}/post/${encodeURIComponent(postId)}?mode=db&depth=4&page=1&per_page=20`).then(r=>r.json()).then(j=>setData(j)).catch(()=>{})
-        }} />
+        <Composer
+          postId={postId}
+          onOptimistic={(node)=>{
+            // prepend optimistic node to thread
+            setData(prev=>{
+              if(!prev) return prev
+              const thread = prev.thread || []
+              return {...prev, thread: [node, ...thread]}
+            })
+          }}
+          onPosted={()=>{
+            // refresh thread after posting (server authoritative)
+            fetch(`${API_BASE}/post/${encodeURIComponent(postId)}?mode=db&depth=4&page=1&per_page=20`).then(r=>r.json()).then(j=>setData(j)).catch(()=>{})
+          }}
+          onRemoveOptimistic={(tmpId)=>{
+            setData(prev=>{
+              if(!prev) return prev
+              const thread = (prev.thread||[]).filter(n=>n.id !== tmpId)
+              return {...prev, thread}
+            })
+          }}
+        />
       </div>
     </div>
   )
 }
 
-function Composer({postId, onPosted}){
+function Composer({postId, onPosted, onOptimistic, onRemoveOptimistic}){
   const [userId, setUserId] = React.useState('')
   const [content, setContent] = React.useState('')
   const [dryRun, setDryRun] = React.useState(true)
@@ -82,6 +100,11 @@ function Composer({postId, onPosted}){
     setLoading(true)
     setResult(null)
     try{
+      // create optimistic node
+      const tmpId = 'tmp-' + Date.now()
+      const tmpNode = { id: tmpId, author_id: userId, content: content, created_at: new Date().toISOString(), replies: [], author: { username: userId, display_name: userId } }
+      try{ if(onOptimistic) onOptimistic(tmpNode) }catch(e){}
+
       const body = { user: userId, content: content, dry_run: dryRun }
       const res = await fetch(`${API_BASE}/post`, { method: 'POST', headers: { 'Content-Type':'application/json', 'X-User': userId }, body: JSON.stringify(body) })
       let json = null
@@ -91,6 +114,8 @@ function Composer({postId, onPosted}){
         setContent('')
         if(onPosted) onPosted()
       }
+      // if failed, remove optimistic node
+      if(!res.ok){ try{ if(onRemoveOptimistic) onRemoveOptimistic(tmpId) }catch(e){} }
     }catch(err){ setResult({ error: err.message }) }
     finally{ setLoading(false) }
   }
