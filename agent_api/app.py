@@ -114,13 +114,13 @@ async def feed(mode: str = "ipfs", limit: int = 20):
 
 
 @app.get("/post/{post_id}")
-async def get_post(post_id: str, mode: str = "ipfs"):
+async def get_post(post_id: str, mode: str = "ipfs", depth: int = 3, page: int = 1, per_page: int = 20):
     adapter = Adapter(mode=mode)
     if mode == "db":
-        res = get_post_and_thread(post_id)
+        res = get_post_and_thread(post_id, depth=depth, page=page, per_page=per_page)
         if not res:
             raise HTTPException(status_code=404, detail="Post not found")
-        return {"ok": True, "post": res["post"], "thread": res["thread"]}
+        return {"ok": True, "post": res["post"], "thread": res["thread"], "meta": res.get("meta")}
 
     # Fallback: scan recent posts from adapter
     posts = adapter.fetch_recent_posts(limit=200)
