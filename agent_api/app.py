@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
@@ -27,6 +28,19 @@ except Exception:
     REDIS_AVAILABLE = False
 
 app = FastAPI()
+
+# Simple in-memory broadcaster for server-sent events (dev use only)
+import asyncio
+_subscribers: List[asyncio.Queue] = []
+
+def publish_event(event: str, data: Dict[str, Any]):
+    payload = {"event": event, "data": data}
+    s = _json.dumps(payload, default=str)
+    for q in list(_subscribers):
+        try:
+            q.put_nowait(s)
+        except Exception:
+            pass
 
 # Development CORS: allow frontend running on localhost:3000 (and 127.0.0.1)
 app.add_middleware(
@@ -187,6 +201,32 @@ async def feed(mode: str = "ipfs", limit: int = 20, cursor: Optional[str] = None
     return {"ok": True, "posts": page, "count": len(page), "next_cursor": next_cursor}
 
 
+@app.get('/events')
+async def sse_events(request: Request):
+    # Server-sent events endpoint
+    async def event_generator():
+        q = asyncio.Queue()
+        _subscribers.append(q)
+        try:
+            while True:
+                # if client closed, exit
+                if await request.is_disconnected():
+                    break
+                try:
+                    item = await asyncio.wait_for(q.get(), timeout=15.0)
+                    yield f"data: {item}\n\n"
+                except asyncio.TimeoutError:
+                    # send a comment to keep connection alive
+                    yield ": ping\n\n"
+        finally:
+            try:
+                _subscribers.remove(q)
+            except Exception:
+                pass
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
 @app.get("/post/{post_id}")
 async def get_post(post_id: str, mode: str = "ipfs", depth: int = 3, page: int = 1, per_page: int = 20):
     adapter = Adapter(mode=mode)
@@ -289,6 +329,10 @@ async def publish(req: PublishRequest, request: Request):
         resp = {"ok": True, "dry_run": True, "record": record}
         if created is not None:
             resp["created"] = created
+            try:
+                publish_event('post', {'post': created})
+            except Exception:
+                pass
         return resp
 
     # Construct the envelope to enqueue for actual write-back
@@ -435,6 +479,11 @@ async def api_follow(user_id: str, request: Request):
                 _redis_client.delete(f"user:{caller}:counts")
         except Exception:
             pass
+        # broadcast follow event
+        try:
+            publish_event('follow', {"follower": caller, "followee": user_id, "action": "follow"})
+        except Exception:
+            pass
         return {"ok": True, "follower": caller, "followee": user_id}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -451,6 +500,10 @@ async def api_unfollow(user_id: str, request: Request):
             if _redis_client:
                 _redis_client.delete(f"user:{user_id}:counts")
                 _redis_client.delete(f"user:{caller}:counts")
+        except Exception:
+            pass
+        try:
+            publish_event('follow', {"follower": caller, "followee": user_id, "action": "unfollow"})
         except Exception:
             pass
         return {"ok": True, "follower": caller, "unfollowed": user_id}

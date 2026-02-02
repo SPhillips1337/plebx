@@ -108,6 +108,17 @@ export default function Feed({currentUser}){
     return ()=> window.removeEventListener('plebx:follow', onFollow)
   }, [])
 
+  // Listen for new posts from SSE
+  useEffect(()=>{
+    function onPost(e){
+      const post = (e.detail && e.detail.post) || null
+      if(!post) return
+      setPosts(prev => [post, ...(prev || [])])
+    }
+    window.addEventListener('plebx:post', onPost)
+    return ()=> window.removeEventListener('plebx:post', onPost)
+  }, [])
+
   return (
     <div>
       <div id="feed">
