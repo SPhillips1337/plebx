@@ -48,6 +48,7 @@ export default function App(){
 
         {route.name === 'feed' && <Feed currentUser={currentUser} />}
         {route.name === 'post' && <PostView postId={route.params.id} currentUser={currentUser} />}
+        {route.name === 'user' && <UserView userId={route.params.id} />}
 
         {showAdmin && <Admin />}
       </main>

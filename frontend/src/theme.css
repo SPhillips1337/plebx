@@ -122,8 +122,24 @@ body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,Arial,sa
 .plebx-nav{display:flex;flex-direction:column;gap:6px;margin-top:6px}
 .plebx-nav-item{display:flex;align-items:center;gap:12px;padding:10px;border-radius:999px;cursor:pointer}
 .plebx-nav-item:hover{background:rgba(255,255,255,0.02)}
+.plebx-nav-item.active{background:rgba(29,155,240,0.12)}
 .plebx-nav-label{display:inline-block}
 .plebx-post-btn{margin-top:12px}
 .plebx-profile-tile{margin-top:auto;display:flex;align-items:center;gap:8px;padding:8px;border-radius:8px}
 .plebx-user-avatar{width:40px;height:40;border-radius:999px;overflow:hidden;background:#f3f4f6}
 .plebx-user-meta{display:flex;flex-direction:column}
+
+/* responsive: collapse labels on small screens */
+@media (max-width:800px){
+  .plebx-sidebar{width:72px}
+  .plebx-nav-label{display:none}
+  .plebx-logo{font-size:18px;text-align:center}
+  .plebx-post-btn .plebx-btn-primary{width:44px;height:44px;padding:0}
+  .plebx-profile-tile{justify-content:center}
+  .plebx-user-meta{display:none}
+}
+
+/* micro-interactions */
+.plebx-nav-item, .plebx-post-btn button, .plebx-profile-tile{transition:transform .12s ease, background .12s ease, box-shadow .12s ease}
+.plebx-nav-item:active{transform:scale(.98)}
+.plebx-btn-primary:hover{filter:brightness(1.05);transform:translateY(-1px)}

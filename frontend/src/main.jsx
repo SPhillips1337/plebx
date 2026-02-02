@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import App from './App'
 import './styles.css'
 import './theme.css'
-import LeftSidebar from './LeftSidebar'
+import './LeftSidebar'
 
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
