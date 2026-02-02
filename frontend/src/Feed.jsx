@@ -2,11 +2,44 @@ import React, {useState, useEffect} from 'react'
 
 const API_BASE = 'http://localhost:8001'
 
+function initials(name){
+  if(!name) return '??'
+  const parts = String(name).split(/[^a-zA-Z0-9]+/).filter(Boolean)
+  if(parts.length===0) return name.slice(0,2).toUpperCase()
+  if(parts.length===1) return parts[0].slice(0,2).toUpperCase()
+  return (parts[0][0]+parts[1][0]).toUpperCase()
+}
+
+function colorFor(name){
+  let h = 0
+  for(let i=0;i<name.length;i++) h = name.charCodeAt(i) + ((h<<5)-h)
+  const hue = Math.abs(h) % 360
+  return `hsl(${hue}deg 65% 45%)`
+}
+
+function Avatar({name}){
+  const label = initials(name)
+  const bg = colorFor(name)
+  return <div className="avatar" style={{background:bg}}>{label}</div>
+}
+
 function Post({p}){
   return (
-    <div className="post" onClick={()=>window.open(`${API_BASE}/post/${encodeURIComponent(p.id)}?mode=db`,'_blank')}>
-      <div className="meta"><strong>{p.author_id}</strong> <span className="score">★ {Number(p.score||0).toFixed(2)}</span></div>
-      <div>{p.content}</div>
+    <div className="post">
+      <div className="post-row">
+        <Avatar name={p.author_id} />
+        <div className="post-content">
+          <div className="meta"><strong>{p.author_id}</strong> <span className="score">★ {Number(p.score||0).toFixed(2)}</span></div>
+          <div className="content-text">{p.content}</div>
+          {p.attachments && p.attachments.length>0 && (
+            <div className="attachments">
+              {p.attachments.map((a,idx)=> (
+                <img key={idx} src={a.url || a} alt="attachment" />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
