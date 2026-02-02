@@ -107,23 +107,41 @@ def get_post_and_thread(post_id: str) -> Optional[Dict[str, Any]]:
         "engagement": json.loads(row[6]) if row[6] else {},
         "raw": json.loads(row[7]) if row[7] else {},
     }
+    # Build a thread tree by loading posts and mapping replies -> children
+    cur.execute("SELECT id, author_id, content, created_at, attachments, reply_to, engagement, raw FROM posts ORDER BY datetime(created_at) ASC")
+    rows = cur.fetchall()
 
-    # Fetch direct replies
-    cur.execute("SELECT id, author_id, content, created_at, attachments, reply_to, engagement, raw FROM posts WHERE reply_to = ? ORDER BY datetime(created_at) ASC", (post_id,))
-    replies = []
-    for r in cur.fetchall():
-        replies.append(
-            {
-                "id": r[0],
-                "author_id": r[1],
-                "content": r[2],
-                "created_at": r[3],
-                "attachments": json.loads(r[4]) if r[4] else [],
-                "reply_to": r[5],
-                "engagement": json.loads(r[6]) if r[6] else {},
-                "raw": json.loads(r[7]) if r[7] else {},
-            }
-        )
+    def row_to_post(r):
+        return {
+            "id": r[0],
+            "author_id": r[1],
+            "content": r[2],
+            "created_at": r[3],
+            "attachments": json.loads(r[4]) if r[4] else [],
+            "reply_to": r[5],
+            "engagement": json.loads(r[6]) if r[6] else {},
+            "raw": json.loads(r[7]) if r[7] else {},
+        }
+
+    posts_by_id = {}
+    children_map = {}
+    for r in rows:
+        p = row_to_post(r)
+        posts_by_id[p["id"]] = p
+        parent = p.get("reply_to")
+        children_map.setdefault(parent, []).append(p)
+
+    # Recursive builder: attach 'replies' list to each node
+    def build_tree(node_id):
+        children = []
+        for child in children_map.get(node_id) or []:
+            # deep copy minimal fields and attach replies
+            c = dict(child)
+            c["replies"] = build_tree(child["id"])
+            children.append(c)
+        return children
+
+    thread = build_tree(post_id)
 
     conn.close()
-    return {"post": post, "thread": replies}
+    return {"post": post, "thread": thread}
