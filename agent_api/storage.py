@@ -416,7 +416,16 @@ def get_recent_posts_by_authors(authors: List[str], limit: int = 50) -> List[Dic
             "raw": json.loads(r[7]) if r[7] else {},
         }
         try:
-            post["author"] = get_user(post.get("author_id"))
+            user = get_user(post.get("author_id"))
+            if user:
+                # attach follower/following counts
+                try:
+                    followers = get_followers(user.get("id"))
+                    following = get_following(user.get("id"))
+                    user["counts"] = {"followers": len(followers), "following": len(following)}
+                except Exception:
+                    user["counts"] = {"followers": 0, "following": 0}
+            post["author"] = user
         except Exception:
             post["author"] = None
         out.append(post)

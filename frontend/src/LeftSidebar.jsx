@@ -30,7 +30,14 @@ export default function LeftSidebar({onHome, currentRoute, currentUser}){
       }catch(e){}
     }
     load()
-    return ()=>{ mounted = false }
+    function onFollowEvent(e){
+      const d = e.detail || {}
+      if(d.followee === (profile && profile.username)){
+        setCounts(prev=>({followers: prev.followers + (d.action==='follow'?1:-1), following: prev.following}))
+      }
+    }
+    window.addEventListener('plebx:follow', onFollowEvent)
+    return ()=>{ mounted = false; window.removeEventListener('plebx:follow', onFollowEvent) }
   }, [currentUser])
 
   const isActive = (name)=>{

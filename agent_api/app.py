@@ -7,9 +7,9 @@ import re
 import json
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
-from adapter import Adapter
-from ranking import RankingService
-from storage import init_db, upsert_posts, get_recent_posts, get_post_and_thread, upsert_user, get_user, get_stats, search_users, list_users, count_users, follow_user, unfollow_user, get_following, get_followers, get_recent_posts_by_authors
+from .adapter import Adapter
+from .ranking import RankingService
+from .storage import init_db, upsert_posts, get_recent_posts, get_post_and_thread, upsert_user, get_user, get_stats, search_users, list_users, count_users, follow_user, unfollow_user, get_following, get_followers, get_recent_posts_by_authors
 import redis as _redis
 REDIS_URL = os.environ.get("REDIS_URL", "redis://redis:6379/0")
 try:
@@ -19,6 +19,7 @@ except Exception:
 import base64
 import uuid
 import json as _json
+import asyncio
 
 # Optional Redis support
 try:
@@ -41,6 +42,12 @@ def publish_event(event: str, data: Dict[str, Any]):
             q.put_nowait(s)
         except Exception:
             pass
+    # publish to redis pubsub channel for multi-process subscribers
+    try:
+        if _redis_client:
+            _redis_client.publish('plebx:events', s)
+    except Exception:
+        pass
 
 # Development CORS: allow frontend running on localhost:3000 (and 127.0.0.1)
 app.add_middleware(
@@ -59,6 +66,35 @@ def startup_event():
         init_db()
     except Exception as e:
         print("init_db failed:", e)
+    # start redis subscriber loop if redis available
+    async def _redis_subscriber():
+        if not _redis_client:
+            return
+        try:
+            pubsub = _redis_client.pubsub(ignore_subscribe_messages=True)
+            pubsub.subscribe('plebx:events')
+            for message in pubsub.listen():
+                try:
+                    if message and message.get('data'):
+                        d = message.get('data')
+                        if isinstance(d, bytes):
+                            d = d.decode('utf-8')
+                        # forward to local subscribers
+                        for q in list(_subscribers):
+                            try:
+                                q.put_nowait(d)
+                            except Exception:
+                                pass
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    try:
+        asyncio.create_task(_redis_subscriber())
+    except Exception:
+        # if event loop not running, ignore; FastAPI will run tasks on startup when ASGI server starts
+        pass
 
 # Config
 ENABLE_WRITEBACK = os.environ.get("ENABLE_WRITEBACK", "false").lower() in ("1", "true", "yes")
@@ -225,6 +261,98 @@ async def sse_events(request: Request):
                 pass
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+@app.get('/admin/queue')
+async def admin_queue(request: Request = None):
+    """Admin: return queue stats and sample items from redis or file."""
+    ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN")
+    if ADMIN_TOKEN:
+        header = None
+        if request:
+            header = request.headers.get("X-Admin-Token")
+        if header != ADMIN_TOKEN:
+            from fastapi import status
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="admin token required")
+
+    info = {"ok": True, "queue": {}}
+    # Redis list
+    try:
+        if _redis_client:
+            size = _redis_client.llen(REVIEW_QUEUE_KEY)
+            items = []
+            try:
+                raw = _redis_client.lrange(REVIEW_QUEUE_KEY, 0, 9)
+                for b in raw:
+                    try:
+                        s = b.decode('utf-8') if isinstance(b, bytes) else str(b)
+                        items.append(_json.loads(s))
+                    except Exception:
+                        items.append(str(b))
+            except Exception:
+                items = []
+            info['queue']['redis'] = {'size': size, 'head': items}
+    except Exception:
+        info['queue']['redis'] = {'size': None, 'head': []}
+
+    # File queue
+    try:
+        qpath = os.path.join('data', 'publish_queue.jsonl')
+        if os.path.exists(qpath):
+            with open(qpath, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+            items = []
+            for l in lines[:10]:
+                try:
+                    items.append(_json.loads(l))
+                except Exception:
+                    items.append(l.strip())
+            info['queue']['file'] = {'size': len(lines), 'head': items}
+        else:
+            info['queue']['file'] = {'size': 0, 'head': []}
+    except Exception:
+        info['queue']['file'] = {'size': None, 'head': []}
+
+    # deadletter
+    try:
+        dpath = os.path.join('data', 'publish_deadletter.jsonl')
+        if os.path.exists(dpath):
+            with open(dpath, 'r', encoding='utf-8') as f:
+                dl = f.readlines()
+            info['queue']['deadletter'] = {'size': len(dl), 'sample': [l.strip() for l in dl[:5]]}
+        else:
+            info['queue']['deadletter'] = {'size': 0, 'sample': []}
+    except Exception:
+        info['queue']['deadletter'] = {'size': None, 'sample': []}
+
+    return info
+
+
+@app.get('/admin/worker')
+async def admin_worker_status(request: Request = None):
+    ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN")
+    if ADMIN_TOKEN:
+        header = None
+        if request:
+            header = request.headers.get("X-Admin-Token")
+        if header != ADMIN_TOKEN:
+            from fastapi import status
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="admin token required")
+
+    # read heartbeat from redis if present
+    hb = None
+    try:
+        if _redis_client:
+            v = _redis_client.get('plebx:worker:heartbeat')
+            if v:
+                try:
+                    hb = v.decode('utf-8') if isinstance(v, bytes) else str(v)
+                except Exception:
+                    hb = str(v)
+    except Exception:
+        hb = None
+
+    return {"ok": True, "worker": {"heartbeat": hb}}
 
 
 @app.get("/post/{post_id}")

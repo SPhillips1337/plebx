@@ -16,6 +16,9 @@ try:
 except Exception:
     r = None
 
+# heartbeat key name
+HEARTBEAT_KEY = os.environ.get('WORKER_HEARTBEAT_KEY', 'plebx:worker:heartbeat')
+
 
 def process_envelope(envelope: dict):
     # normalized post structure
@@ -79,7 +82,23 @@ def run_loop():
                     payload = item[1]
                     try:
                         env = json.loads(payload)
-                        process_envelope(env)
+                        # retry attempts
+                        attempts = 0
+                        while attempts < 3:
+                            try:
+                                process_envelope(env)
+                                break
+                            except Exception as ex:
+                                attempts += 1
+                                time.sleep(0.5 * attempts)
+                        else:
+                            # write to deadletter
+                            try:
+                                dl = os.path.join(os.path.dirname(__file__), '..', 'data', 'publish_deadletter.jsonl')
+                                with open(dl, 'a', encoding='utf-8') as f:
+                                    f.write(json.dumps(env, ensure_ascii=False) + '\n')
+                            except Exception:
+                                pass
                     except Exception as e:
                         print("worker: invalid redis payload", e)
                 else:
@@ -90,6 +109,13 @@ def run_loop():
         else:
             # no redis, just sleep and reprocess file periodically
             time.sleep(2.0)
+
+        # heartbeat update
+        try:
+            if r:
+                r.setex(HEARTBEAT_KEY, 30, time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()))
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":

@@ -45,7 +45,7 @@ services:
 
   worker:
     build: ./agent_api
-    command: python agent_api/worker.py
+    command: python worker.py
     restart: unless-stopped
     environment:
       - REDIS_URL=redis://redis:6379/0
