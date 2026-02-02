@@ -4,7 +4,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 import os
 
-DB_PATH = os.environ.get("PLEBX_DB_PATH", "data/plebx.db")
+DB_PATH = os.environ.get("PLEBX_DB_PATH", "/data/plebx.db")
 
 
 def _conn():
