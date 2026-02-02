@@ -8,7 +8,7 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
 from adapter import Adapter
 from ranking import RankingService
-from storage import init_db, upsert_posts, get_recent_posts, get_post_and_thread, upsert_user, get_user, get_stats, search_users, list_users, count_users
+from storage import init_db, upsert_posts, get_recent_posts, get_post_and_thread, upsert_user, get_user, get_stats, search_users, list_users, count_users, follow_user, unfollow_user, get_following, get_followers, get_recent_posts_by_authors
 import base64
 import uuid
 import json as _json
@@ -119,7 +119,7 @@ def _decode_cursor(s: str) -> dict:
 
 
 @app.get("/feed")
-async def feed(mode: str = "ipfs", limit: int = 20, cursor: Optional[str] = None):
+async def feed(mode: str = "ipfs", limit: int = 20, cursor: Optional[str] = None, viewer: Optional[str] = None):
     """Return a scored feed using cursor-based pagination.
 
     Cursor is a URL-safe base64-encoded JSON object: {"score": <float>, "id": "<post_id>"} representing
@@ -131,6 +131,12 @@ async def feed(mode: str = "ipfs", limit: int = 20, cursor: Optional[str] = None
     # Normalize source posts and optionally cache
     if mode == "db":
         posts = get_recent_posts(limit=1000)
+    elif mode == "follows":
+        if viewer:
+            authors = get_following(viewer)
+            posts = get_recent_posts_by_authors(authors, limit=1000)
+        else:
+            posts = get_recent_posts(limit=1000)
     else:
         raw_posts = adapter.fetch_recent_posts(limit=1000)
         normalized_posts = [adapter.normalize_post(p) for p in raw_posts]
@@ -404,6 +410,49 @@ async def users_search(query: str = "", limit: int = 10):
     try:
         results = search_users(query, limit=limit)
         return {"ok": True, "users": results}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/user/{user_id}/follow")
+async def api_follow(user_id: str, request: Request):
+    """Follow user_id on behalf of the caller. Caller must send X-User header."""
+    caller = request.headers.get("X-User")
+    if not caller:
+        raise HTTPException(status_code=400, detail="X-User header required")
+    try:
+        follow_user(caller, user_id)
+        return {"ok": True, "follower": caller, "followee": user_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/user/{user_id}/follow")
+async def api_unfollow(user_id: str, request: Request):
+    caller = request.headers.get("X-User")
+    if not caller:
+        raise HTTPException(status_code=400, detail="X-User header required")
+    try:
+        unfollow_user(caller, user_id)
+        return {"ok": True, "follower": caller, "unfollowed": user_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/user/{user_id}/following")
+async def api_get_following(user_id: str):
+    try:
+        res = get_following(user_id)
+        return {"ok": True, "following": res}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/user/{user_id}/followers")
+async def api_get_followers(user_id: str):
+    try:
+        res = get_followers(user_id)
+        return {"ok": True, "followers": res}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

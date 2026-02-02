@@ -44,6 +44,25 @@ def init_db():
     except Exception:
         pass
 
+    # Ensure follows table exists
+    try:
+        conn = _conn()
+        cur = conn.cursor()
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS follows (
+                follower_id TEXT,
+                followee_id TEXT,
+                created_at TEXT,
+                PRIMARY KEY (follower_id, followee_id)
+            )
+            """
+        )
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
 
 def init_users_table():
     conn = _conn()
@@ -324,6 +343,70 @@ def get_user(user_id: str) -> Optional[Dict[str, Any]]:
         "bio": row[4],
         "raw": json.loads(row[5]) if row[5] else {},
     }
+
+
+def follow_user(follower_id: str, followee_id: str):
+    conn = _conn()
+    cur = conn.cursor()
+    cur.execute("INSERT OR IGNORE INTO follows (follower_id, followee_id, created_at) VALUES (?, ?, datetime('now'))", (follower_id, followee_id))
+    conn.commit()
+    conn.close()
+
+
+def unfollow_user(follower_id: str, followee_id: str):
+    conn = _conn()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM follows WHERE follower_id = ? AND followee_id = ?", (follower_id, followee_id))
+    conn.commit()
+    conn.close()
+
+
+def get_following(user_id: str) -> List[str]:
+    conn = _conn()
+    cur = conn.cursor()
+    cur.execute("SELECT followee_id FROM follows WHERE follower_id = ?", (user_id,))
+    rows = cur.fetchall()
+    conn.close()
+    return [r[0] for r in rows]
+
+
+def get_followers(user_id: str) -> List[str]:
+    conn = _conn()
+    cur = conn.cursor()
+    cur.execute("SELECT follower_id FROM follows WHERE followee_id = ?", (user_id,))
+    rows = cur.fetchall()
+    conn.close()
+    return [r[0] for r in rows]
+
+
+def get_recent_posts_by_authors(authors: List[str], limit: int = 50) -> List[Dict[str, Any]]:
+    if not authors:
+        return []
+    placeholders = ','.join('?' for _ in authors)
+    conn = _conn()
+    cur = conn.cursor()
+    sql = f"SELECT id, author_id, content, created_at, attachments, reply_to, engagement, raw FROM posts WHERE author_id IN ({placeholders}) ORDER BY datetime(created_at) DESC LIMIT ?"
+    cur.execute(sql, (*authors, limit))
+    rows = cur.fetchall()
+    conn.close()
+    out = []
+    for r in rows:
+        post = {
+            "id": r[0],
+            "author_id": r[1],
+            "content": r[2],
+            "created_at": r[3],
+            "attachments": json.loads(r[4]) if r[4] else [],
+            "reply_to": r[5],
+            "engagement": json.loads(r[6]) if r[6] else {},
+            "raw": json.loads(r[7]) if r[7] else {},
+        }
+        try:
+            post["author"] = get_user(post.get("author_id"))
+        except Exception:
+            post["author"] = None
+        out.append(post)
+    return out
 
 
 def search_users(query: str, limit: int = 10) -> List[Dict[str, Any]]:
