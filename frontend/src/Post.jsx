@@ -53,12 +53,65 @@ export default function PostView({postId}){
           </div>
         </div>
       </div>
-
       <div style={{marginTop:16}}>
         <h4>Replies</h4>
         {(!data.thread || data.thread.length===0) && <div>No replies</div>}
         {data.thread && data.thread.map(r=> <ReplyNode key={r.id} node={r} depth={0} />)}
       </div>
+
+      <div style={{marginTop:20}}>
+        <h4>Write a reply</h4>
+        <Composer postId={postId} onPosted={()=>{
+          // refresh thread after posting
+          fetch(`${API_BASE}/post/${encodeURIComponent(postId)}?mode=db&depth=4&page=1&per_page=20`).then(r=>r.json()).then(j=>setData(j)).catch(()=>{})
+        }} />
+      </div>
+    </div>
+  )
+}
+
+function Composer({postId, onPosted}){
+  const [userId, setUserId] = React.useState('')
+  const [content, setContent] = React.useState('')
+  const [dryRun, setDryRun] = React.useState(true)
+  const [loading, setLoading] = React.useState(false)
+  const [result, setResult] = React.useState(null)
+
+  async function submit(e){
+    e && e.preventDefault()
+    setLoading(true)
+    setResult(null)
+    try{
+      const body = { user: userId, content: content, dry_run: dryRun }
+      const res = await fetch(`${API_BASE}/post`, { method: 'POST', headers: { 'Content-Type':'application/json', 'X-User': userId }, body: JSON.stringify(body) })
+      let json = null
+      try{ json = await res.json() }catch(e){ json = null }
+      if(!res.ok){ setResult({ error: json || `status ${res.status}` }) }
+      else { setResult({ ok: true, body: json })
+        setContent('')
+        if(onPosted) onPosted()
+      }
+    }catch(err){ setResult({ error: err.message }) }
+    finally{ setLoading(false) }
+  }
+
+  return (
+    <div style={{background:'#fff',padding:12,borderRadius:8,border:'1px solid #e6edf3'}}>
+      <form onSubmit={submit}>
+        <div style={{marginBottom:8}}>
+          <label>From (X-User header)<br/><input value={userId} onChange={e=>setUserId(e.target.value)} placeholder="user id" required style={{width:'100%'}}/></label>
+        </div>
+        <div style={{marginBottom:8}}>
+          <label>Reply content<br/><textarea value={content} onChange={e=>setContent(e.target.value)} rows={4} style={{width:'100%'}} required/></label>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:8}}>
+          <label><input type="checkbox" checked={dryRun} onChange={e=>setDryRun(e.target.checked)} /> Dry run (preview)</label>
+          <div style={{flex:1}} />
+          <button type="submit" disabled={loading}>{loading? 'Posting...':'Post Reply'}</button>
+        </div>
+      </form>
+      {result && result.error && <div style={{color:'red',marginTop:8}}>Error: {String(result.error)}</div>}
+      {result && result.ok && <div style={{color:'green',marginTop:8}}>Success: {JSON.stringify(result.body)}</div>}
     </div>
   )
 }
