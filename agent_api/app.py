@@ -8,6 +8,8 @@ from datetime import datetime, timezone
 from adapter import Adapter
 from ranking import RankingService
 from storage import init_db, upsert_posts, get_recent_posts, get_post_and_thread
+import base64
+import json as _json
 
 # Optional Redis support
 try:
@@ -91,17 +93,35 @@ async def health():
     return {"status": "ok", "writeback_enabled": ENABLE_WRITEBACK}
 
 
+def _encode_cursor(c: dict) -> str:
+    s = _json.dumps(c, separators=(",", ":"))
+    return base64.urlsafe_b64encode(s.encode("utf-8")).decode("ascii")
+
+
+def _decode_cursor(s: str) -> dict:
+    try:
+        raw = base64.urlsafe_b64decode(s.encode("ascii")).decode("utf-8")
+        return _json.loads(raw)
+    except Exception:
+        return {}
+
+
 @app.get("/feed")
-async def feed(mode: str = "ipfs", limit: int = 20):
+async def feed(mode: str = "ipfs", limit: int = 20, cursor: Optional[str] = None):
+    """Return a scored feed using cursor-based pagination.
+
+    Cursor is a URL-safe base64-encoded JSON object: {"score": <float>, "id": "<post_id>"} representing
+    the last item seen. Page results include posts strictly less than the cursor (by score, then id).
+    """
     adapter = Adapter(mode=mode)
     ranking = RankingService()
 
+    # Normalize source posts and optionally cache
     if mode == "db":
-        posts = get_recent_posts(limit=limit)
+        posts = get_recent_posts(limit=1000)
     else:
-        raw_posts = adapter.fetch_recent_posts(limit=limit)
+        raw_posts = adapter.fetch_recent_posts(limit=1000)
         normalized_posts = [adapter.normalize_post(p) for p in raw_posts]
-        # cache into DB for later use
         try:
             upsert_posts(normalized_posts)
         except Exception:
@@ -110,7 +130,37 @@ async def feed(mode: str = "ipfs", limit: int = 20):
 
     scored_posts = ranking.score_posts(posts)
 
-    return {"ok": True, "posts": scored_posts, "count": len(scored_posts)}
+    # Apply cursor filtering
+    if cursor:
+        cur_obj = _decode_cursor(cursor)
+        try:
+            last_score = float(cur_obj.get("score", None))
+            last_id = str(cur_obj.get("id", ""))
+            def after_cursor(p):
+                s = float(p.get("score", 0))
+                pid = str(p.get("id", ""))
+                # Keep posts strictly less than cursor (score desc)
+                if s < last_score:
+                    return True
+                if s == last_score and pid < last_id:
+                    return True
+                return False
+            filtered = [p for p in scored_posts if after_cursor(p)]
+        except Exception:
+            filtered = scored_posts
+    else:
+        filtered = scored_posts
+
+    # Limit results
+    page = filtered[:limit]
+
+    # Compute next cursor if there are more
+    next_cursor = None
+    if len(filtered) > limit:
+        last = page[-1]
+        next_cursor = _encode_cursor({"score": last.get("score", 0), "id": last.get("id")})
+
+    return {"ok": True, "posts": page, "count": len(page), "next_cursor": next_cursor}
 
 
 @app.get("/post/{post_id}")
