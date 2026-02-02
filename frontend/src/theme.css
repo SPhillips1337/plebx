@@ -26,8 +26,16 @@ body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,Arial,sa
 
 .plebx-compose{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:12px;border-radius:10px}
 
+.plebx-input{width:100%;padding:8px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text)}
+.plebx-textarea{width:100%;padding:8px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--text);min-height:90px}
+
 /* responsive tweaks */
 @media (max-width:600px){
   .plebx-post{padding:10px}
   .plebx-avatar{width:40px;height:40px}
 }
+
+.plebx-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.plebx-back{background:transparent;color:var(--text);border:1px solid rgba(255,255,255,0.04);padding:6px 10px;border-radius:8px}
+.plebx-loadmore{margin-top:12px;text-align:center}
+.plebx-small-muted{color:var(--muted);font-size:13px}

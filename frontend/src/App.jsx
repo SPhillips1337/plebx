@@ -24,10 +24,10 @@ export default function App(){
   }, [])
 
   return (
-    <div className="plebx-app" style={{fontFamily:'Inter,system-ui,Arial,sans-serif'}}>
-      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+    <div className="plebx-app">
+      <div className="plebx-header">
         <h1>PlebX — Feed (MVP)</h1>
-        <div><button onClick={()=>setShowAdmin(s=>!s)}>{showAdmin? 'Close Admin':'Open Admin'}</button></div>
+        <div><button className="plebx-btn-primary" onClick={()=>setShowAdmin(s=>!s)}>{showAdmin? 'Close Admin':'Open Admin'}</button></div>
       </div>
 
       {route.name === 'feed' && <Feed />}

@@ -44,16 +44,15 @@ export default function PostView({postId}){
   const p = data.post
   return (
     <div className="plebx-post">
-      <button onClick={()=>{ window.history.pushState({},'', '/'); window.dispatchEvent(new PopStateEvent('popstate')) }} style={{marginBottom:12}}>← Back to feed</button>
+      <div style={{marginBottom:12}}><button className="plebx-back" onClick={()=>{ window.history.pushState({},'', '/'); window.dispatchEvent(new PopStateEvent('popstate')) }}>← Back to feed</button></div>
       <div className="plebx-card">
-        <div style={{display:'flex',gap:12}}>
-          <div style={{width:56,height:56,borderRadius:999,background:'#f3f4f6',display:'flex',alignItems:'center',justifyContent:'center'}}>
-            {(p.author && (p.author.display_name||p.author.username)||p.author_id||' ').slice(0,2).toUpperCase()
-            }
+        <div className="post-row">
+          <div className="plebx-avatar" style={{background: (p.author && p.author.avatar_url) ? 'transparent' : undefined}}>
+            {p.author && p.author.avatar_url ? <img src={p.author.avatar_url} alt="avatar" style={{width:'100%',height:'100%',borderRadius:999,objectFit:'cover'}} /> : ((p.author && (p.author.display_name||p.author.username)||p.author_id||' ').slice(0,2).toUpperCase())}
           </div>
-          <div style={{flex:1}}>
-            <div style={{fontWeight:700,fontSize:16}}>{(p.author && (p.author.display_name||p.author.username)) || p.author_id}</div>
-            <div style={{marginTop:8,color:'#111827'}}>{p.content}</div>
+          <div className="post-content">
+            <div className="plebx-meta"><strong>{(p.author && (p.author.display_name||p.author.username)) || p.author_id}</strong> <span className="plebx-score">★ {Number(p.score||0).toFixed(2)}</span></div>
+            <div className="content-text">{p.content}</div>
           </div>
         </div>
       </div>
@@ -148,18 +147,18 @@ function Composer({postId, onPosted, onOptimistic, onRemoveOptimistic, onReplace
   }
 
   return (
-    <div style={{background:'#fff',padding:12,borderRadius:8,border:'1px solid #e6edf3'}}>
+    <div className="plebx-compose">
       <form onSubmit={submit}>
         <div style={{marginBottom:8}}>
-          <label>From (X-User header)<br/><input value={userId} onChange={e=>setUserId(e.target.value)} placeholder="user id" required style={{width:'100%'}}/></label>
+          <label>From (X-User header)<br/><input className="plebx-input" value={userId} onChange={e=>setUserId(e.target.value)} placeholder="user id" required /></label>
         </div>
         <div style={{marginBottom:8}}>
-          <label>Reply content<br/><textarea value={content} onChange={e=>setContent(e.target.value)} rows={4} style={{width:'100%'}} required/></label>
+          <label>Reply content<br/><textarea className="plebx-textarea" value={content} onChange={e=>setContent(e.target.value)} rows={4} required/></label>
         </div>
         <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:8}}>
           <label><input type="checkbox" checked={dryRun} onChange={e=>setDryRun(e.target.checked)} /> Dry run (preview)</label>
           <div style={{flex:1}} />
-          <button type="submit" disabled={loading}>{loading? 'Posting...':'Post Reply'}</button>
+          <button type="submit" className="plebx-btn-primary" disabled={loading}>{loading? 'Posting...':'Post Reply'}</button>
         </div>
       </form>
       {result && result.error && <div style={{color:'red',marginTop:8}}>Error: {String(result.error)}</div>}
