@@ -43,11 +43,25 @@ services:
     depends_on:
       - redis
 
+  worker:
+    build: ./agent_api
+    command: python agent_api/worker.py
+    restart: unless-stopped
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - REVIEW_QUEUE_KEY=plebx:publish:queue
+      - PLEBX_DB_PATH=/data/plebx.db
+    volumes:
+      - ./data:/data
+    depends_on:
+      - redis
+      - api
+
   web:
     build: ./frontend
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3000:80"
     depends_on:
       - api
 
