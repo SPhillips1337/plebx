@@ -7,9 +7,9 @@ import re
 import json
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
-from .adapter import Adapter
-from .ranking import RankingService
-from .storage import init_db, upsert_posts, get_recent_posts, get_post_and_thread, upsert_user, get_user, get_stats, search_users, list_users, count_users, follow_user, unfollow_user, get_following, get_followers, get_recent_posts_by_authors
+from adapter import Adapter
+from ranking import RankingService
+from storage import init_db, upsert_posts, get_recent_posts, get_post_and_thread, upsert_user, get_user, get_stats, search_users, list_users, count_users, follow_user, unfollow_user, get_following, get_followers, get_recent_posts_by_authors
 import redis as _redis
 REDIS_URL = os.environ.get("REDIS_URL", "redis://redis:6379/0")
 try:
