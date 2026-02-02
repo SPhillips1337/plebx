@@ -8,7 +8,7 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
 from adapter import Adapter
 from ranking import RankingService
-from storage import init_db, upsert_posts, get_recent_posts, get_post_and_thread
+from storage import init_db, upsert_posts, get_recent_posts, get_post_and_thread, upsert_user, get_user, get_stats
 import base64
 import json as _json
 
