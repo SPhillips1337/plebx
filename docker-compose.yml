@@ -19,6 +19,7 @@ services:
     restart: on-failure
     environment:
       - OPENAI_API_KEY
+      - ENABLE_WRITEBACK=true
       - QDRANT_URL=http://qdrant:6333
     ports:
       - "8001:8000"

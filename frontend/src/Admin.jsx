@@ -89,6 +89,9 @@ export default function Admin(){
   const [listPerPage] = useState(10)
   const [listTotal, setListTotal] = useState(0)
   const [listLoading, setListLoading] = useState(false)
+  const [queueInfo, setQueueInfo] = useState(null)
+  const [workerInfo, setWorkerInfo] = useState(null)
+  const [queueLoading, setQueueLoading] = useState(false)
 
   async function loadUsers(page = 1){
     setListLoading(true)
@@ -104,6 +107,30 @@ export default function Admin(){
       setShowList(true)
     }catch(e){ setUsersList([]); setListTotal(0) }
     finally{ setListLoading(false) }
+  }
+
+  async function loadQueue(){
+    setQueueLoading(true)
+    try{
+      const hdrs = {}
+      if(adminToken) hdrs['X-Admin-Token'] = adminToken
+      const res = await fetch(`${API_BASE}/admin/queue`, {headers: hdrs})
+      const data = await res.json()
+      if(res.ok) setQueueInfo(data)
+      else setQueueInfo({error: data.detail || 'failed'})
+    }catch(e){ setQueueInfo({error: String(e)}) }
+    finally{ setQueueLoading(false) }
+  }
+
+  async function loadWorker(){
+    try{
+      const hdrs = {}
+      if(adminToken) hdrs['X-Admin-Token'] = adminToken
+      const res = await fetch(`${API_BASE}/admin/worker`, {headers: hdrs})
+      const data = await res.json()
+      if(res.ok) setWorkerInfo(data)
+      else setWorkerInfo({error: data.detail || 'failed'})
+    }catch(e){ setWorkerInfo({error: String(e)}) }
   }
   
   // Show token modal when admin UI opens; token kept in memory unless user opts to remember
@@ -169,7 +196,7 @@ export default function Admin(){
       </form>
       <div className="mt-16">
         <button className="plebx-btn-primary" onClick={()=>loadUsers(1)} disabled={listLoading}>{listLoading? 'Loading...':'Show Users'}</button>
-        {showList && (
+      {showList && (
           <div className="mt-12">
             <div className="mb-8"><strong>Users (page {listPage})</strong></div>
               <div className="box-border">
@@ -191,6 +218,19 @@ export default function Admin(){
               <button onClick={()=>loadUsers(listPage+1)} disabled={listPage*listPerPage >= listTotal}>Next</button>
             </div>
           </div>
+        )}
+      </div>
+      <div className="mt-12">
+        <h3>Admin: Queue & Worker</h3>
+        <div style={{display:'flex',gap:8,alignItems:'center',marginBottom:8}}>
+          <button className="plebx-btn-primary" onClick={loadQueue} disabled={queueLoading}>{queueLoading? 'Loading...':'Refresh Queue'}</button>
+          <button className="plebx-btn-primary" onClick={loadWorker}>Worker Status</button>
+        </div>
+        {queueInfo && (
+          <pre style={{whiteSpace:'pre-wrap',fontSize:12,maxHeight:200,overflow:'auto',background:'#071426',padding:8,borderRadius:6}}>{JSON.stringify(queueInfo,null,2)}</pre>
+        )}
+        {workerInfo && (
+          <pre style={{whiteSpace:'pre-wrap',fontSize:12,maxHeight:200,overflow:'auto',background:'#071426',padding:8,borderRadius:6}}>{JSON.stringify(workerInfo,null,2)}</pre>
         )}
       </div>
     </div>
