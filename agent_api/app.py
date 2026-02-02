@@ -8,7 +8,7 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
 from adapter import Adapter
 from ranking import RankingService
-from storage import init_db, upsert_posts, get_recent_posts, get_post_and_thread, upsert_user, get_user, get_stats, search_users
+from storage import init_db, upsert_posts, get_recent_posts, get_post_and_thread, upsert_user, get_user, get_stats, search_users, list_users, count_users
 import base64
 import json as _json
 
@@ -377,6 +377,26 @@ async def users_search(query: str = "", limit: int = 10):
     try:
         results = search_users(query, limit=limit)
         return {"ok": True, "users": results}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/admin/users")
+async def admin_list_users(page: int = 1, per_page: int = 20, request: Request = None):
+    """Admin: paginated list of users. Requires ADMIN_TOKEN if set."""
+    ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN")
+    if ADMIN_TOKEN:
+        header = None
+        if request:
+            header = request.headers.get("X-Admin-Token")
+        if header != ADMIN_TOKEN:
+            from fastapi import status
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="admin token required")
+
+    try:
+        total = count_users()
+        users = list_users(page=page, per_page=per_page)
+        return {"ok": True, "users": users, "meta": {"page": page, "per_page": per_page, "total": total}}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

@@ -348,3 +348,36 @@ def search_users(query: str, limit: int = 10) -> List[Dict[str, Any]]:
             "avatar_url": r[3],
         })
     return out
+
+
+def count_users() -> int:
+    conn = _conn()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT COUNT(1) FROM users")
+        row = cur.fetchone()
+        return int(row[0]) if row else 0
+    finally:
+        conn.close()
+
+
+def list_users(page: int = 1, per_page: int = 20) -> List[Dict[str, Any]]:
+    if page < 1:
+        page = 1
+    if per_page < 1:
+        per_page = 20
+    offset = (page - 1) * per_page
+    conn = _conn()
+    cur = conn.cursor()
+    cur.execute("SELECT id, username, display_name, avatar_url, bio FROM users ORDER BY username LIMIT ? OFFSET ?", (per_page, offset))
+    rows = cur.fetchall()
+    conn.close()
+    out = []
+    for r in rows:
+        out.append({
+            "id": r[0],
+            "username": r[1],
+            "display_name": r[2],
+            "avatar_url": r[3],
+        })
+    return out

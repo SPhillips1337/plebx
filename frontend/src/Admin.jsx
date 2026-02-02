@@ -74,6 +74,28 @@ export default function Admin(){
 
   useEffect(()=>()=>{ if(suggestTimer.current) clearTimeout(suggestTimer.current) }, [])
 
+  const [showList, setShowList] = useState(false)
+  const [usersList, setUsersList] = useState([])
+  const [listPage, setListPage] = useState(1)
+  const [listPerPage] = useState(10)
+  const [listTotal, setListTotal] = useState(0)
+  const [listLoading, setListLoading] = useState(false)
+
+  async function loadUsers(page = 1){
+    setListLoading(true)
+    try{
+      const res = await fetch(`${API_BASE}/admin/users?page=${page}&per_page=${listPerPage}`)
+      const data = await res.json()
+      if(!res.ok){ setUsersList([]); setListTotal(0); return }
+      setUsersList(data.users || [])
+      setListTotal((data.meta && data.meta.total) || 0)
+      setListPage(page)
+      setShowList(true)
+    }catch(e){ setUsersList([]); setListTotal(0) }
+    finally{ setListLoading(false) }
+  }
+
+
   return (
     <div style={{marginTop:20,padding:12,background:'#fff',borderRadius:8,boxShadow:'0 1px 3px rgba(0,0,0,0.06)'}}>
       <h3>Admin: Edit User Profile</h3>
@@ -103,6 +125,32 @@ export default function Admin(){
         </div>
         <div><button type="submit">Save</button> <span style={{marginLeft:12}}>{status}</span></div>
       </form>
+      <div style={{marginTop:16}}>
+        <button onClick={()=>loadUsers(1)} disabled={listLoading}>{listLoading? 'Loading...':'Show Users'}</button>
+        {showList && (
+          <div style={{marginTop:12}}>
+            <div style={{marginBottom:8}}><strong>Users (page {listPage})</strong></div>
+            <div style={{border:'1px solid #e5e7eb',borderRadius:6,overflow:'hidden'}}>
+              {usersList.map(u=> (
+                <div key={u.id} style={{display:'flex',alignItems:'center',padding:8,borderBottom:'1px solid #f3f4f6',cursor:'pointer'}} onClick={()=>{ setUserId(u.id); setDisplayName(u.display_name||u.username||''); setAvatarUrl(u.avatar_url||''); setShowList(false)} }>
+                  <div style={{width:40,height:40,overflow:'hidden',borderRadius:999,background:'#f3f4f6',display:'inline-flex',alignItems:'center',justifyContent:'center',marginRight:12}}>
+                    {u.avatar_url ? <img src={u.avatar_url} alt={u.username} style={{width:'100%',height:'100%',objectFit:'cover'}} /> : <span style={{color:'#6b7280'}}>{(u.display_name||u.username||'').slice(0,2).toUpperCase()}</span>}
+                  </div>
+                  <div style={{flex:1}}>
+                    <div style={{fontWeight:600}}>{u.display_name||u.username}</div>
+                    <div style={{fontSize:12,color:'#6b7280'}}>@{u.username}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{display:'flex',justifyContent:'space-between',marginTop:8}}>
+              <button onClick={()=>loadUsers(Math.max(1,listPage-1))} disabled={listPage<=1}>Prev</button>
+              <div style={{alignSelf:'center'}}>Total: {listTotal}</div>
+              <button onClick={()=>loadUsers(listPage+1)} disabled={listPage*listPerPage >= listTotal}>Next</button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
