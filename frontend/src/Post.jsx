@@ -95,7 +95,7 @@ export default function PostView({postId}){
   )
 }
 
-function Composer({postId, onPosted, onOptimistic, onRemoveOptimistic}){
+function Composer({postId, onPosted, onOptimistic, onRemoveOptimistic, onReplaceOptimistic}){
   const [userId, setUserId] = React.useState('')
   const [content, setContent] = React.useState('')
   const [dryRun, setDryRun] = React.useState(true)
@@ -138,8 +138,7 @@ function Composer({postId, onPosted, onOptimistic, onRemoveOptimistic}){
           if(onPosted) onPosted()
         }
       }
-      // if failed, remove optimistic node
-      if(!res.ok){ try{ if(onRemoveOptimistic) onRemoveOptimistic(tmpId) }catch(e){} }
+      // (removed duplicate optimistic cleanup handled above)
     }catch(err){ setResult({ error: err.message }) }
     finally{ setLoading(false) }
   }
