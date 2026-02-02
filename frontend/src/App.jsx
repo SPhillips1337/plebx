@@ -1,4 +1,5 @@
 import React from 'react'
+import LeftSidebar from './LeftSidebar'
 import Feed from './Feed'
 import Admin from './Admin'
 import PostView from './Post'
