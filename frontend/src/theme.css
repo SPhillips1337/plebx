@@ -115,3 +115,15 @@ body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,Arial,sa
 .avatar-hue-11{background:hsl(330deg 60% 45%)}
 
 .plebx-avatar--image{background:transparent}
+
+/* Sidebar */
+.plebx-sidebar{width:220px;padding:12px 8px;display:flex;flex-direction:column;gap:12px}
+.plebx-logo{font-size:22px;font-weight:800;padding:12px 8px;cursor:pointer}
+.plebx-nav{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.plebx-nav-item{display:flex;align-items:center;gap:12px;padding:10px;border-radius:999px;cursor:pointer}
+.plebx-nav-item:hover{background:rgba(255,255,255,0.02)}
+.plebx-nav-label{display:inline-block}
+.plebx-post-btn{margin-top:12px}
+.plebx-profile-tile{margin-top:auto;display:flex;align-items:center;gap:8px;padding:8px;border-radius:8px}
+.plebx-user-avatar{width:40px;height:40;border-radius:999px;overflow:hidden;background:#f3f4f6}
+.plebx-user-meta{display:flex;flex-direction:column}

@@ -33,20 +33,23 @@ export default function App(){
   }, [])
 
   return (
-    <div className="plebx-app">
-      <div className="plebx-header">
-        <h1>PlebX — Feed (MVP)</h1>
-        <div className="flex gap-8 align-center">
-          <input className="plebx-input" placeholder="Act as user id" value={currentUser} onChange={e=>setCurrentUser(e.target.value)} />
-          <button onClick={saveCurrentUser} className="plebx-btn-primary">Set</button>
-          <button className="plebx-btn-primary" onClick={()=>setShowAdmin(s=>!s)}>{showAdmin? 'Close Admin':'Open Admin'}</button>
+    <div style={{display:'flex',gap:24}}>
+      <LeftSidebar onHome={()=>{ window.history.pushState({},'', '/'); window.dispatchEvent(new PopStateEvent('popstate')) }} />
+      <main className="plebx-app">
+        <div className="plebx-header">
+          <h1>PlebX — Feed (MVP)</h1>
+          <div className="flex gap-8 align-center">
+            <input className="plebx-input" placeholder="Act as user id" value={currentUser} onChange={e=>setCurrentUser(e.target.value)} />
+            <button onClick={saveCurrentUser} className="plebx-btn-primary">Set</button>
+            <button className="plebx-btn-primary" onClick={()=>setShowAdmin(s=>!s)}>{showAdmin? 'Close Admin':'Open Admin'}</button>
+          </div>
         </div>
-      </div>
 
-      {route.name === 'feed' && <Feed currentUser={currentUser} />}
-      {route.name === 'post' && <PostView postId={route.params.id} currentUser={currentUser} />}
+        {route.name === 'feed' && <Feed currentUser={currentUser} />}
+        {route.name === 'post' && <PostView postId={route.params.id} currentUser={currentUser} />}
 
-      {showAdmin && <Admin />}
+        {showAdmin && <Admin />}
+      </main>
     </div>
   )
 }
