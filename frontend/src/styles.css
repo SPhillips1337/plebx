@@ -1,0 +1,4 @@
+body{margin:0;font-family:Inter,system-ui,Arial,sans-serif}
+.post{background:#fff;padding:12px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.06);margin-bottom:12px}
+.meta{font-size:12px;color:#666}
+.score{float:right;color:#0b74de}

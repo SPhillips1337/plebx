@@ -1,6 +1,13 @@
-FROM python:3.11-slim
+### multi-stage: build with node, serve with nginx
+FROM node:18-alpine AS builder
 WORKDIR /app
-COPY . /app
-EXPOSE 3000
-# Simple static server for the minimal frontend
-CMD ["python", "-m", "http.server", "3000"]
+COPY package.json package-lock.json* ./
+RUN npm ci --silent || npm install --silent
+COPY . .
+RUN npm run build
+
+FROM nginx:stable-alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
