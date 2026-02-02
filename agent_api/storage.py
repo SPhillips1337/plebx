@@ -145,3 +145,30 @@ def get_post_and_thread(post_id: str) -> Optional[Dict[str, Any]]:
 
     conn.close()
     return {"post": post, "thread": thread}
+
+
+def get_stats() -> Dict[str, Any]:
+    """Return simple DB stats: post_count, db_path, file_size, last_modified (iso)."""
+    import os
+    stats = {"post_count": 0, "db_path": DB_PATH, "file_size": None, "last_modified": None}
+    if not os.path.exists(DB_PATH):
+        return stats
+    try:
+        conn = _conn()
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(1) FROM posts")
+        row = cur.fetchone()
+        stats["post_count"] = int(row[0]) if row else 0
+        conn.close()
+    except Exception:
+        # best-effort
+        stats["post_count"] = 0
+
+    try:
+        st = os.stat(DB_PATH)
+        stats["file_size"] = st.st_size
+        stats["last_modified"] = datetime.utcfromtimestamp(st.st_mtime).isoformat() + "Z"
+    except Exception:
+        pass
+
+    return stats

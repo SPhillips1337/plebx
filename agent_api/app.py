@@ -278,3 +278,23 @@ async def admin_seed(mode: str = "ipfs", limit: int = 50, request: Request = Non
         raise HTTPException(status_code=500, detail=f"failed to seed: {e}")
 
     return {"ok": True, "seeded": len(normalized_posts)}
+
+
+@app.get("/admin/status")
+async def admin_status(request: Request = None):
+    """Return basic admin status about the sqlite cache and service."""
+    ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN")
+    if ADMIN_TOKEN:
+        header = None
+        if request:
+            header = request.headers.get("X-Admin-Token")
+        if header != ADMIN_TOKEN:
+            from fastapi import status
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="admin token required")
+
+    try:
+        stats = get_stats()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"failed to read stats: {e}")
+
+    return {"ok": True, "stats": stats}
