@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>PlebX — Feed</title>
+    <style>
+      body{font-family:Inter,system-ui,Arial,sans-serif;margin:24px;background:linear-gradient(180deg,#f7fafc,#fff)}
+      .post{background:#fff;padding:12px;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.06);margin-bottom:12px}
+      .meta{font-size:12px;color:#666}
+      .score{float:right;color:#0b74de}
+    </style>
+  </head>
+  <body>
+    <h1>PlebX — Feed (MVP)</h1>
+    <div id="feed">Loading...</div>
+
+    <script>
+      async function loadFeed(){
+        const el = document.getElementById('feed');
+        try{
+          const res = await fetch('/feed');
+          if(!res.ok){ el.innerText = 'Feed request failed: '+res.status; return }
+          const data = await res.json();
+          el.innerHTML = '';
+          if(!data.posts || data.posts.length===0){ el.innerText='No posts'; return }
+          for(const p of data.posts){
+            const d = document.createElement('div'); d.className='post';
+            d.innerHTML = `<div class="meta"><strong>${p.author_id}</strong> <span class="score">★ ${parseFloat(p.score||0).toFixed(2)}</span></div><div>${p.content}</div>`;
+            d.onclick = ()=>{ window.location='/post/'+encodeURIComponent(p.id); };
+            el.appendChild(d);
+          }
+        }catch(e){ el.innerText = 'Error loading feed: '+e }
+      }
+      loadFeed();
+    </script>
+  </body>
+</html>

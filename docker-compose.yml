@@ -43,5 +43,13 @@ services:
     depends_on:
       - redis
 
+  web:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
 volumes:
   qdrant_data:
