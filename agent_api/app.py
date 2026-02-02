@@ -247,3 +247,34 @@ async def queue_size():
     except Exception:
         pass
     return {"size": 0}
+
+
+@app.post("/admin/seed")
+async def admin_seed(mode: str = "ipfs", limit: int = 50, request: Request = None):
+    """Seed the SQLite cache from the adapter on demand.
+
+    - mode: adapter mode to use (ipfs/api/db)
+    - limit: number of recent posts to fetch and persist
+
+    If `ADMIN_TOKEN` is set in the environment, the request must include header
+    `X-Admin-Token: <token>` matching that value.
+    """
+    from fastapi import status
+
+    ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN")
+    if ADMIN_TOKEN:
+        header = None
+        if request:
+            header = request.headers.get("X-Admin-Token")
+        if header != ADMIN_TOKEN:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="admin token required")
+
+    adapter = Adapter(mode=mode)
+    raw_posts = adapter.fetch_recent_posts(limit=limit)
+    normalized_posts = [adapter.normalize_post(p) for p in raw_posts]
+    try:
+        upsert_posts(normalized_posts)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"failed to seed: {e}")
+
+    return {"ok": True, "seeded": len(normalized_posts)}
