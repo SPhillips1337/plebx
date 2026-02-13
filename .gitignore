@@ -13,6 +13,8 @@ ENV/
 .env.*
 .env.local
 .git-credentials
+.aws/
+credentials
 
 # SSH keys
 *.pem
@@ -53,6 +55,9 @@ node_modules/
 
 # Agent runner build artifacts
 agent_runner/__pycache__/
+dist/
+build/
+*.egg-info/
 
 # Misc
 *.patch

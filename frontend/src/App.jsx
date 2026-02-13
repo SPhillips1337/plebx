@@ -38,7 +38,7 @@ export default function App(){
       <LeftSidebar onHome={()=>{ window.history.pushState({},'', '/'); window.dispatchEvent(new PopStateEvent('popstate')) }} />
       <main className="plebx-app">
         <div className="plebx-header">
-          <h1>PlebX — Feed (MVP)</h1>
+          <h1>PlebX — Live Plebbit Feed 🌉</h1>
           <div className="flex gap-8 align-center">
             <input className="plebx-input" placeholder="Act as user id" value={currentUser} onChange={e=>setCurrentUser(e.target.value)} />
             <button onClick={saveCurrentUser} className="plebx-btn-primary">Set</button>

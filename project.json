@@ -60,8 +60,8 @@
         "name": "Discovery",
         "description": "Audit source repos and decide ingestion strategy",
         "tasks": [
-          { "name": "Audit 5chan codebase", "status": "pending" },
-          { "name": "Decide read-only vs write-back", "status": "pending" }
+          { "name": "Audit 5chan codebase", "status": "completed" },
+          { "name": "Decide read-only vs write-back", "status": "completed" }
         ]
       },
       {
@@ -69,9 +69,9 @@
         "name": "MVP",
         "description": "Adapter + simple ranking + UI",
         "tasks": [
-          { "name": "Implement Plebbit adapter (read-only)", "status": "pending" },
-          { "name": "Implement simplified ranking service", "status": "pending" },
-          { "name": "Basic React feed and thread UI", "status": "pending" }
+          { "name": "Implement P2P bridge to Plebbit network", "status": "completed" },
+          { "name": "Integrate bridge with ranking service", "status": "completed" },
+          { "name": "Build React feed with bridge integration", "status": "completed" }
         ]
       },
       {
@@ -86,8 +86,8 @@
     ]
   },
   "todo": [
-    { "id": "T001", "title": "Confirm read-only ingestion strategy", "status": "pending", "priority": "high" },
-    { "id": "T002", "title": "Seed local dev DB with sample Plebbit data", "status": "pending", "priority": "high" },
+    { "id": "T001", "title": "Confirm read-only ingestion strategy", "status": "completed", "priority": "high" },
+    { "id": "T002", "title": "Create P2P bridge prototype", "status": "completed", "priority": "high" },
     { "id": "T003", "title": "Implement ranking microservice prototype", "status": "pending", "priority": "medium" }
   ],
   "files_of_interest": [
@@ -176,6 +176,6 @@
     "manifest": "project.json",
     "scaffold": "agent_spec.yaml"
   },
-  "progress_percent": 10,
-  "progress_state": "planning"
+  "progress_percent": 50,
+  "progress_state": "frontend-active"
 }

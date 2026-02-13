@@ -9,6 +9,7 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
 from adapter import Adapter
 from ranking import RankingService
+from p2p_bridge_v2 import PlebbitBridge
 from storage import init_db, upsert_posts, get_recent_posts, get_post_and_thread, upsert_user, get_user, get_stats, search_users, list_users, count_users, follow_user, unfollow_user, get_following, get_followers, get_recent_posts_by_authors
 import redis as _redis
 REDIS_URL = os.environ.get("REDIS_URL", "redis://redis:6379/0")
@@ -175,7 +176,7 @@ def _decode_cursor(s: str) -> dict:
 
 
 @app.get("/feed")
-async def feed(mode: str = "ipfs", limit: int = 20, cursor: Optional[str] = None, viewer: Optional[str] = None):
+async def feed(mode: str = "bridge", limit: int = 20, cursor: Optional[str] = None, viewer: Optional[str] = None):
     """Return a scored feed using cursor-based pagination.
 
     Cursor is a URL-safe base64-encoded JSON object: {"score": <float>, "id": "<post_id>"} representing
@@ -184,8 +185,11 @@ async def feed(mode: str = "ipfs", limit: int = 20, cursor: Optional[str] = None
     adapter = Adapter(mode=mode)
     ranking = RankingService()
 
-    # Normalize source posts and optionally cache
-    if mode == "db":
+        # Normalize source posts and optionally cache
+    if mode == "bridge":
+        # Bridge mode handled separately above
+        posts = bridge_posts
+    elif mode == "db":
         posts = get_recent_posts(limit=1000)
     elif mode == "follows":
         if viewer:
@@ -209,8 +213,44 @@ async def feed(mode: str = "ipfs", limit: int = 20, cursor: Optional[str] = None
             viewer_following_set = set(get_following(viewer))
         except Exception:
             viewer_following_set = None
-
-    scored_posts = ranking.score_posts(posts, viewer_following=viewer_following_set)
+    
+    # Try to get posts from P2P bridge first, fallback to adapter
+    bridge_posts = []
+    try:
+        from p2p_bridge_v2 import PlebbitBridge
+        bridge = PlebbitBridge()
+        bridge_posts = await bridge.get_subplebbit_posts("memes.eth", limit=100)
+        print(f"✅ Got {len(bridge_posts)} posts from P2P bridge")
+    except Exception as e:
+        print(f"❌ Bridge failed: {e}")
+    
+    # Use bridge posts if available, otherwise fallback to adapter
+    if bridge_posts:
+        posts = [bridge.normalize_post(p) for p in bridge_posts]
+        try:
+            upsert_posts(posts)
+        except Exception:
+            pass
+    else:
+        # Fallback to original adapter logic
+        if mode == "db":
+            posts = get_recent_posts(limit=1000)
+        elif mode == "follows":
+            if viewer:
+                authors = get_following(viewer)
+                posts = get_recent_posts_by_authors(authors, limit=1000)
+            else:
+                posts = get_recent_posts(limit=1000)
+        else:
+            raw_posts = adapter.fetch_recent_posts(limit=1000)
+            normalized_posts = [adapter.normalize_post(p) for p in raw_posts]
+            try:
+                upsert_posts(normalized_posts)
+            except Exception:
+                pass
+        posts = normalized_posts
+    
+    scored_posts = ranking.rank_posts(posts, viewer_following=viewer_following_set)
 
     # Apply cursor filtering
     if cursor:
