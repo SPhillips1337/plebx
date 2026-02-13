@@ -20,7 +20,7 @@ class Adapter:
             return self._fetch_from_db(limit)
         if self.mode == "api":
             return self._fetch_from_api(limit)
-        if self.mode == "ipfs":
+        if self.mode == "ipfs" or self.mode == "bridge":
             return self._fetch_from_ipfs(limit)
         raise ValueError(f"Unknown adapter mode: {self.mode}")
 

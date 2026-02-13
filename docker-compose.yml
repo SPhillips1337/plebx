@@ -1,4 +1,3 @@
-
 services:
   qdrant:
     image: qdrant/qdrant:latest
@@ -14,6 +13,20 @@ services:
     ports:
       - "6379:6379"
 
+  bitsocial:
+    build: https://github.com/bitsocialhq/bitsocial-cli.git#master
+    container_name: bitsocial
+    restart: unless-stopped
+    ports:
+      - "9138:9138" # Plebbit RPC + Web UI
+      - "50019:50019" # Kubo IPFS API
+      - "6473:6473" # IPFS Gateway
+    volumes:
+      - bitsocial_data:/data
+      - bitsocial_logs:/logs
+    environment:
+      - DEBUG=bitsocial*,plebbit*,-plebbit*trace
+
   bridge:
     build:
       context: ./agent_api
@@ -21,15 +34,17 @@ services:
     restart: unless-stopped
     ports:
       - "8001:8001"
+    environment:
+      - BITSOCIAL_DAEMON_URL=http://bitsocial:9138/
     volumes:
       - ./data:/data
       - ./logs:/logs
     depends_on:
       - redis
-      
+      - bitsocial
+
   api:
     build: ./agent_api
-    command: python app.py
     restart: on-failure
     environment:
       - OPENAI_API_KEY
@@ -37,7 +52,7 @@ services:
       - QDRANT_URL=http://qdrant:6333
       - BRIDGE_API_URL=http://bridge:8001
     ports:
-      - "8000:8000"
+      - "8010:8000"
     volumes:
       - ./data:/data
       - ./logs:/logs
@@ -84,3 +99,5 @@ services:
 
 volumes:
   qdrant_data:
+  bitsocial_data:
+  bitsocial_logs:

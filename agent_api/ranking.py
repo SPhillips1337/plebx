@@ -5,7 +5,7 @@ class RankingService:
     def __init__(self, config: Dict[str, Any] = None):
         self.config = config or {}
 
-    def score_posts(self, posts: List[Dict[str, Any]], viewer_following: Optional[Set[str]] = None) -> List[Dict[str, Any]]:
+    def rank_posts(self, posts: List[Dict[str, Any]], viewer_following: Optional[Set[str]] = None) -> List[Dict[str, Any]]:
         """
         Applies a simplified ranking algorithm based on recency and engagement.
         Score = (Likes * 2 + Comments * 5) / (AgeInHours + 2)^1.5
