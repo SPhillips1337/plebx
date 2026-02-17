@@ -40,14 +40,34 @@ async def run_bridge():
                         logger.info(f"Fetching posts for {sub_address}...")
                         posts_page = await bridge.get_subplebbit_posts(sub_address, limit=20)
                         
-                        if posts_page and "posts" in posts_page:
-                            posts = posts_page["posts"]
-                            logger.info(f"Found {len(posts)} posts in {sub_address}")
+                        if posts_page:
+                            # Handling both raw list and page object { comments: [...] }
+                            posts = []
+                            if isinstance(posts_page, list):
+                                posts = posts_page
+                            elif isinstance(posts_page, dict):
+                                posts = posts_page.get("comments", []) or posts_page.get("posts", [])
                             
-                            # 3. Normalize and save to DB
-                            normalized = [bridge.normalize_post(p) for p in posts]
-                            upsert_posts(normalized)
-                            logger.info(f"Saved {len(normalized)} posts to Plebx DB")
+                            if posts:
+                                logger.info(f"Found {len(posts)} posts in {sub_address}")
+                                
+                                # 3. Normalize and save to DB
+                                normalized = []
+                                for post_wrapper in posts:
+                                    # In getSubplebbitPage, posts are often wrapped
+                                    post = post_wrapper
+                                    if isinstance(post_wrapper, dict) and "comment" in post_wrapper:
+                                        post = post_wrapper["comment"]
+                                    elif isinstance(post_wrapper, dict) and "publication" in post_wrapper:
+                                        post = post_wrapper["publication"]
+                                    
+                                    if isinstance(post, dict):
+                                        normalized.append(bridge.normalize_post(post))
+                                
+                                upsert_posts(normalized)
+                                logger.info(f"Saved {len(normalized)} posts to Plebx DB")
+                            else:
+                                logger.info(f"No valid posts found in page for {sub_address}")
             
             except Exception as e:
                 logger.error(f"Error in bridge poll cycle: {e}")
