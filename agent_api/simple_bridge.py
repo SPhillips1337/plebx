@@ -1,63 +1,65 @@
-#!/usr/bin/env python3
-"""
-Simplified P2P Bridge Service - Manual daemon mode
-Expects plebbit/bitsocial daemon to be running manually
-"""
 import asyncio
-import logging
-import requests
 import os
-from p2p_bridge_v2 import PlebbitBridge, BridgeServer
-
-BITSOCIAL_DAEMON_URL = os.environ.get("BITSOCIAL_DAEMON_URL", "http://localhost:9138/")
+import logging
+from p2p_bridge_v2 import PlebbitBridge
+from storage import upsert_posts
 
 # Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
-async def check_daemon_status() -> bool:
-    """Check if daemon is running"""
-    try:
-        response = requests.get(BITSOCIAL_DAEMON_URL, timeout=5)
-        return response.status_code == 200
-    except:
-        return False
+async def run_bridge():
+    """Main bridge loop: discovers subs and pulls latest posts"""
+    daemon_url = os.environ.get("BITSOCIAL_DAEMON_URL", "ws://localhost:9138/plebx")
+    logger.info(f"Starting Plebx Bridge. Connecting to: {daemon_url}")
+    
+    bridge = PlebbitBridge(daemon_url)
+    
+    # Try connecting
+    if not await bridge.connect():
+        logger.error("Failed to connect to Plebbit daemon. Exiting.")
+        return
 
-async def main():
-    """Main entry point"""
-    logger.info("Starting simplified Plebx P2P Bridge Service...")
+    logger.info("✅ Connected to daemon. Waiting for subplebbits discovery...")
     
-    # Check daemon status
-    if not await check_daemon_status():
-        logger.error(f"❌ Plebbit daemon not running on {BITSOCIAL_DAEMON_URL}")
-        logger.info("📋 Manual setup required:")
-        logger.info("   1. Install: npm install -g bitsocialhq/bitsocial-cli")
-        logger.info("   2. Start: bitsocial daemon")
-        logger.info("   3. Retry this service")
-        return
-    
-    logger.info("✅ Plebbit daemon detected!")
-    
-    # Initialize bridge
-    bridge = PlebbitBridge()
-    
-    # Test bridge connection
     try:
-        health = await bridge.health_check()
-        logger.info(f"✅ Bridge health: {health}")
-    except Exception as e:
-        logger.error(f"❌ Bridge health check failed: {e}")
-        return
-    
-    # Start bridge server
-    server = BridgeServer(bridge)
-    try:
-        logger.info("🌉 Starting bridge server on http://0.0.0.0:8001")
-        await server.start()
-    except KeyboardInterrupt:
-        logger.info("Shutting down...")
-    except Exception as e:
-        logger.error(f"Server error: {e}")
+        while True:
+            # 1. Get list of subscribed subplebbits
+            try:
+                subs = await bridge.list_subplebbits()
+                if not subs:
+                    logger.info("No subplebbits found. Be sure to join some in the Bitsocial UI.")
+                else:
+                    logger.info(f"Discovered {len(subs)} subplebbits: {subs}")
+                    
+                    # 2. For each subplebbit, fetch latest posts
+                    for sub_address in subs:
+                        logger.info(f"Fetching posts for {sub_address}...")
+                        posts_page = await bridge.get_subplebbit_posts(sub_address, limit=20)
+                        
+                        if posts_page and "posts" in posts_page:
+                            posts = posts_page["posts"]
+                            logger.info(f"Found {len(posts)} posts in {sub_address}")
+                            
+                            # 3. Normalize and save to DB
+                            normalized = [bridge.normalize_post(p) for p in posts]
+                            upsert_posts(normalized)
+                            logger.info(f"Saved {len(normalized)} posts to Plebx DB")
+            
+            except Exception as e:
+                logger.error(f"Error in bridge poll cycle: {e}")
+            
+            # Poll every 60 seconds
+            await asyncio.sleep(60)
+            
+    except asyncio.CancelledError:
+        logger.info("Bridge stopping...")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(run_bridge())
+    except KeyboardInterrupt:
+        pass
