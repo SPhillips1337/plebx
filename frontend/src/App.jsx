@@ -3,6 +3,8 @@ import LeftSidebar from './LeftSidebar'
 import Feed from './Feed'
 import Admin from './Admin'
 import PostView from './Post'
+import Chat from './Chat'
+import UserView from './User'
 import {useState, useEffect} from 'react'
 
 function parseRoute(){
@@ -10,6 +12,9 @@ function parseRoute(){
   if(path.startsWith('/post/')){
     const id = decodeURIComponent(path.replace('/post/',''))
     return {name: 'post', params: {id}}
+  }
+  if(path.startsWith('/messages') || path.startsWith('/chat')){
+    return {name: 'chat'}
   }
   return {name: 'feed'}
 }
@@ -49,6 +54,7 @@ export default function App(){
         {route.name === 'feed' && <Feed currentUser={currentUser} />}
         {route.name === 'post' && <PostView postId={route.params.id} currentUser={currentUser} />}
         {route.name === 'user' && <UserView userId={route.params.id} />}
+        {route.name === 'chat' && <Chat currentUser={currentUser} />}
 
         {showAdmin && <Admin />}
       </main>

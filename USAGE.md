@@ -33,8 +33,8 @@ nano .env
 npm install -g @plebbit/plebbit-cli
 
 # Start the daemon (required for P2P bridge)
-plebbit daemon
-
+#plebbit daemon
+bitsocial daemon
 # Verify daemon is running
 curl http://localhost:9138/
 ```

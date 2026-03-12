@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from adapter import Adapter
 from ranking import RankingService
 from p2p_bridge_v2 import PlebbitBridge
-from storage import init_db, upsert_posts, get_recent_posts, get_post_and_thread, upsert_user, get_user, get_stats, search_users, list_users, count_users, follow_user, unfollow_user, get_following, get_followers, get_recent_posts_by_authors
+from storage import init_db, upsert_posts, get_recent_posts, get_post_and_thread, upsert_user, get_user, get_stats, search_users, list_users, count_users, follow_user, unfollow_user, get_following, get_followers, get_recent_posts_by_authors, init_chat_tables, save_message, get_messages, get_conversations, mark_messages_read
 import redis as _redis
 REDIS_URL = os.environ.get("REDIS_URL", "redis://redis:6379/0")
 try:
@@ -21,6 +21,45 @@ import base64
 import uuid
 import json as _json
 import asyncio
+from fastapi import WebSocket, WebSocketDisconnect
+from typing import Set, Dict
+
+
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: Dict[str, Set[WebSocket]] = {}
+
+    async def connect(self, websocket: WebSocket, user_id: str):
+        await websocket.accept()
+        if user_id not in self.active_connections:
+            self.active_connections[user_id] = set()
+        self.active_connections[user_id].add(websocket)
+
+    def disconnect(self, websocket: WebSocket, user_id: str):
+        if user_id in self.active_connections:
+            self.active_connections[user_id].discard(websocket)
+            if not self.active_connections[user_id]:
+                del self.active_connections[user_id]
+
+    async def send_personal(self, message: dict, user_id: str):
+        if user_id in self.active_connections:
+            for connection in list(self.active_connections[user_id]):
+                try:
+                    await connection.send_json(message)
+                except Exception:
+                    pass
+
+    async def broadcast(self, message: dict):
+        for user_id, connections in self.active_connections.items():
+            for connection in list(connections):
+                try:
+                    await connection.send_json(message)
+                except Exception:
+                    pass
+
+
+manager = ConnectionManager()
+
 
 # Optional Redis support
 try:
@@ -50,12 +89,13 @@ def publish_event(event: str, data: Dict[str, Any]):
     except Exception:
         pass
 
-# Development CORS: allow frontend running on localhost:3000 (and 127.0.0.1)
+# Development CORS: allow frontend running on localhost:3000/5173 (and 127.0.0.1)
+from starlette.middleware.cors import CORSMiddleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
@@ -67,6 +107,11 @@ async def startup_event():
         init_db()
     except Exception as e:
         print("init_db failed:", e)
+    # initialize chat tables
+    try:
+        init_chat_tables()
+    except Exception as e:
+        print("init_chat_tables failed:", e)
     # start redis subscriber loop if redis available
     def _run_subscriber():
         if not _redis_client:
@@ -779,5 +824,137 @@ async def admin_upsert_user(user_id: str, payload: Dict[str, Any], request: Requ
         upsert_user(user_obj)
         u = get_user(user_id)
         return {"ok": True, "user": u}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.websocket("/ws/chat")
+async def websocket_chat(websocket: WebSocket):
+    """WebSocket endpoint for real-time chat."""
+    user_id = None
+    try:
+        first_msg = await websocket.receive_json()
+        user_id = first_msg.get("user_id")
+        if not user_id:
+            await websocket.send_json({"error": "user_id required"})
+            await websocket.close()
+            return
+    except Exception:
+        await websocket.close()
+        return
+
+    await manager.connect(websocket, user_id)
+    try:
+        while True:
+            data = await websocket.receive_json()
+            msg_type = data.get("type")
+            
+            if msg_type == "message":
+                receiver_id = data.get("receiver_id")
+                content = data.get("content")
+                if not receiver_id or not content:
+                    await websocket.send_json({"error": "receiver_id and content required"})
+                    continue
+                
+                message = {
+                    "id": f"msg-{uuid.uuid4().hex[:12]}",
+                    "sender_id": user_id,
+                    "receiver_id": receiver_id,
+                    "content": content,
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "read": 0
+                }
+                save_message(message)
+                
+                # Send to receiver
+                await manager.send_personal({"type": "message", "data": message}, receiver_id)
+                # Confirm to sender
+                await manager.send_personal({"type": "sent", "data": message}, user_id)
+                
+                # Publish event for SSE subscribers
+                try:
+                    publish_event('chat', {"message": message})
+                except Exception:
+                    pass
+                
+            elif msg_type == "typing":
+                receiver_id = data.get("receiver_id")
+                if receiver_id:
+                    await manager.send_personal({"type": "typing", "from": user_id}, receiver_id)
+                    
+            elif msg_type == "read":
+                receiver_id = data.get("receiver_id")
+                if receiver_id:
+                    mark_messages_read(user_id, receiver_id)
+                    await manager.send_personal({"type": "read", "by": user_id}, receiver_id)
+                    
+    except WebSocketDisconnect:
+        if user_id:
+            manager.disconnect(websocket, user_id)
+    except Exception as e:
+        if user_id:
+            manager.disconnect(websocket, user_id)
+
+
+class ChatMessageRequest(BaseModel):
+    receiver_id: str
+    content: str
+
+
+@app.post("/chat/message")
+async def send_chat_message(req: ChatMessageRequest, request: Request):
+    """Send a chat message via REST API."""
+    user_id = request.headers.get("X-User")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="X-User header required")
+    
+    message = {
+        "id": f"msg-{uuid.uuid4().hex[:12]}",
+        "sender_id": user_id,
+        "receiver_id": req.receiver_id,
+        "content": req.content,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "read": 0
+    }
+    save_message(message)
+    
+    # Try to send via WebSocket if connected
+    await manager.send_personal({"type": "message", "data": message}, req.receiver_id)
+    
+    # Publish event
+    try:
+        publish_event('chat', {"message": message})
+    except Exception:
+        pass
+    
+    return {"ok": True, "message": message}
+
+
+@app.get("/chat/conversations")
+async def get_user_conversations(request: Request, limit: int = 20):
+    """Get list of conversations for current user."""
+    user_id = request.headers.get("X-User")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="X-User header required")
+    
+    try:
+        conversations = get_conversations(user_id, limit=limit)
+        return {"ok": True, "conversations": conversations}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/chat/{other_user}")
+async def get_chat_history(other_user: str, request: Request, limit: int = 50):
+    """Get chat history with another user."""
+    user_id = request.headers.get("X-User")
+    if not user_id:
+        raise HTTPException(status_code=401, detail="X-User header required")
+    
+    try:
+        messages = get_messages(user_id, other_user, limit=limit)
+        # Mark as read
+        mark_messages_read(other_user, user_id)
+        return {"ok": True, "messages": messages}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

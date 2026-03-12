@@ -4,7 +4,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 import os
 
-DB_PATH = os.environ.get("PLEBX_DB_PATH", "/data/plebx.db")
+DB_PATH = os.environ.get("PLEBX_DB_PATH", "./data/plebx.db")
 
 
 def _conn():
@@ -487,3 +487,105 @@ def list_users(page: int = 1, per_page: int = 20) -> List[Dict[str, Any]]:
             "avatar_url": r[3],
         })
     return out
+
+
+def init_chat_tables():
+    conn = _conn()
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS messages (
+            id TEXT PRIMARY KEY,
+            sender_id TEXT NOT NULL,
+            receiver_id TEXT NOT NULL,
+            content TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            read INTEGER DEFAULT 0
+        )
+    """)
+    try:
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_messages_receiver ON messages(receiver_id)")
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at)")
+    except Exception:
+        pass
+    conn.commit()
+    conn.close()
+
+
+def save_message(message: Dict[str, Any]):
+    conn = _conn()
+    cur = conn.cursor()
+    cur.execute(
+        "INSERT INTO messages (id, sender_id, receiver_id, content, created_at, read) VALUES (?, ?, ?, ?, ?, ?)",
+        (message.get("id"), message.get("sender_id"), message.get("receiver_id"), 
+         message.get("content"), message.get("created_at"), message.get("read", 0))
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_messages(user1: str, user2: str, limit: int = 50) -> List[Dict[str, Any]]:
+    conn = _conn()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT id, sender_id, receiver_id, content, created_at, read 
+        FROM messages 
+        WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)
+        ORDER BY created_at DESC LIMIT ?
+    """, (user1, user2, user2, user1, limit))
+    rows = cur.fetchall()
+    conn.close()
+    return [{"id": r[0], "sender_id": r[1], "receiver_id": r[2], "content": r[3], "created_at": r[4], "read": r[5]} for r in rows]
+
+
+def get_conversations(user_id: str, limit: int = 20) -> List[Dict[str, Any]]:
+    conn = _conn()
+    cur = conn.cursor()
+    cur.execute("""
+        SELECT 
+            CASE WHEN sender_id = ? THEN receiver_id ELSE sender_id END as other_user,
+            MAX(created_at) as last_at
+        FROM messages
+        WHERE sender_id = ? OR receiver_id = ?
+        GROUP BY other_user
+        ORDER BY last_at DESC LIMIT ?
+    """, (user_id, user_id, user_id, limit))
+    rows = cur.fetchall()
+    
+    conversations = []
+    for r in rows:
+        other = r[0]
+        # Get last message
+        cur.execute("""
+            SELECT content FROM messages 
+            WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)
+            ORDER BY created_at DESC LIMIT 1
+        """, (user_id, other, other, user_id))
+        msg_row = cur.fetchone()
+        last_msg = msg_row[0] if msg_row else ""
+        
+        # Get unread count
+        cur.execute("""
+            SELECT COUNT(*) FROM messages 
+            WHERE sender_id = ? AND receiver_id = ? AND read = 0
+        """, (other, user_id))
+        unread_row = cur.fetchone()
+        unread = unread_row[0] if unread_row else 0
+        
+        conversations.append({
+            "other_user": other,
+            "last_message": last_msg,
+            "last_at": r[1],
+            "unread": unread
+        })
+    
+    conn.close()
+    return conversations
+
+
+def mark_messages_read(sender_id: str, receiver_id: str):
+    conn = _conn()
+    cur = conn.cursor()
+    cur.execute("UPDATE messages SET read = 1 WHERE sender_id = ? AND receiver_id = ?", (sender_id, receiver_id))
+    conn.commit()
+    conn.close()

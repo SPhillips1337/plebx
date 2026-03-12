@@ -42,6 +42,7 @@ export default function LeftSidebar({onHome, currentRoute, currentUser}){
 
   const isActive = (name)=>{
     if(name === 'home') return currentRoute && currentRoute.name === 'feed'
+    if(name === 'chat') return currentRoute && currentRoute.name === 'chat'
     if(name === 'profile') return currentRoute && currentRoute.name === 'user' && currentRoute.params && currentRoute.params.id === (profile && profile.username)
     return false
   }
@@ -54,7 +55,7 @@ export default function LeftSidebar({onHome, currentRoute, currentUser}){
         <NavItem icon="home" label="Home" onClick={onHome} active={isActive('home')} />
         <NavItem icon="search" label="Explore" />
         <NavItem icon="notifications" label="Notifications" />
-        <NavItem icon="message" label="Messages" />
+        <NavItem icon="message" label="Messages" onClick={()=>{ window.history.pushState({},'', '/messages'); window.dispatchEvent(new PopStateEvent('popstate')) }} active={isActive('chat')} />
         <NavItem icon="lists" label="Lists" />
         <NavItem icon="bookmarks" label="Bookmarks" />
         <NavItem icon="person" label="Profile" onClick={()=>{ if(profile) { window.history.pushState({},'', '/user/'+encodeURIComponent(profile.username)); window.dispatchEvent(new PopStateEvent('popstate')) } }} active={isActive('profile')} />

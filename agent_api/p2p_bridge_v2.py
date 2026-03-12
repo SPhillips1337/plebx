@@ -167,8 +167,8 @@ class PlebbitBridge:
             try:
                 # Step 2: Wait for the first update notification
                 # IPNS resolution can take a while, so we use a generous timeout
-                logger.info(f"Waiting up to 120s for metadata of {subplebbit_address}...")
-                metadata = await asyncio.wait_for(future, timeout=120.0)
+                logger.info(f"Waiting up to 10s for metadata of {subplebbit_address}...")
+                metadata = await asyncio.wait_for(future, timeout=10.0)
                 return metadata
             finally:
                 # Cleanup: Unsubscribe even if we timed out
